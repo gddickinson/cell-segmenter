@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                            QPushButton, QRadioButton, QGroupBox, QLabel,
                            QFileDialog, QListWidget, QListWidgetItem,
                            QColorDialog, QInputDialog, QSpinBox, QComboBox,
-                           QMessageBox, QDialog, QProgressBar)
+                           QMessageBox, QDialog, QProgressBar, QCheckBox, QMenu)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 import pyqtgraph as pg
@@ -135,13 +135,33 @@ class MainWindow(QMainWindow):
             label_group = QGroupBox("Labels")
             label_layout = QVBoxLayout()
 
+            # Label list with context menu
             self.label_list = QListWidget()
             self.label_list.itemClicked.connect(self.select_label)
+            self.label_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            self.label_list.customContextMenuRequested.connect(self.show_label_context_menu)
             label_layout.addWidget(self.label_list)
+
+            # Buttons for label management
+            button_layout = QHBoxLayout()
 
             add_label_btn = QPushButton("Add Label")
             add_label_btn.clicked.connect(self.add_label)
-            label_layout.addWidget(add_label_btn)
+            button_layout.addWidget(add_label_btn)
+
+            remove_label_btn = QPushButton("Remove Label")
+            remove_label_btn.clicked.connect(self.remove_selected_label)
+            button_layout.addWidget(remove_label_btn)
+
+            undo_label_btn = QPushButton("Undo Last")
+            undo_label_btn.clicked.connect(self.undo_last_training)
+            button_layout.addWidget(undo_label_btn)
+
+            clear_labels_btn = QPushButton("Clear All")
+            clear_labels_btn.clicked.connect(self.clear_all_training)
+            button_layout.addWidget(clear_labels_btn)
+
+            label_layout.addLayout(button_layout)
 
             label_group.setLayout(label_layout)
             layout.addWidget(label_group)
@@ -201,6 +221,10 @@ class MainWindow(QMainWindow):
             self.model_combo.addItems(['Random Forest', 'CNN'])
             self.model_combo.currentTextChanged.connect(self.select_model)
             model_layout.addWidget(self.model_combo)
+
+            # Training data selector
+            self.use_all_frames = QCheckBox("Use training data from all frames")
+            model_layout.addWidget(self.use_all_frames)
 
             # Training button
             self.train_button = QPushButton("Train Model")
@@ -520,6 +544,190 @@ class MainWindow(QMainWindow):
             logger.error("Error segmenting all frames")
             logger.exception(e)
             QMessageBox.critical(self, "Error", f"Error segmenting frames: {str(e)}")
+
+    def undo_last_training(self):
+        """Remove the last training data added to the current frame."""
+        try:
+            if not self.labels or self.active_label is None:
+                return
+
+            # Remove mask for current frame if it exists
+            if self.current_frame in self.active_label.masks:
+                del self.active_label.masks[self.current_frame]
+                self.update_overlay()
+                logger.debug(f"Removed training data for frame {self.current_frame}")
+
+                # Show confirmation
+                QMessageBox.information(self, "Success",
+                    f"Removed training data for frame {self.current_frame}")
+            else:
+                QMessageBox.information(self, "Info",
+                    "No training data to undo for this frame")
+
+        except Exception as e:
+            logger.error("Error undoing last training")
+            logger.exception(e)
+            QMessageBox.critical(self, "Error", f"Error undoing training: {str(e)}")
+
+    def show_label_context_menu(self, position):
+        """Show context menu for label list items.
+
+        Args:
+            position: Position where menu should appear
+        """
+        try:
+            item = self.label_list.itemAt(position)
+            if item is None:
+                return
+
+            menu = QMenu(self)
+            rename_action = menu.addAction("Rename")
+            change_color_action = menu.addAction("Change Color")
+            remove_action = menu.addAction("Remove")
+
+            # Show menu and get selected action
+            action = menu.exec(self.label_list.mapToGlobal(position))
+
+            if action == rename_action:
+                self.rename_label(item)
+            elif action == change_color_action:
+                self.change_label_color(item)
+            elif action == remove_action:
+                self.remove_label(item)
+
+        except Exception as e:
+            logger.error("Error showing context menu")
+            logger.exception(e)
+
+    def rename_label(self, item):
+        """Rename a label.
+
+        Args:
+            item: Label list item to rename
+        """
+        try:
+            idx = self.label_list.row(item)
+            label = self.labels[idx]
+
+            name, ok = QInputDialog.getText(
+                self, "Rename Label",
+                "Enter new name:",
+                text=label.name
+            )
+
+            if ok and name:
+                label.name = name
+                item.setText(name)
+                logger.debug(f"Renamed label to: {name}")
+
+        except Exception as e:
+            logger.error("Error renaming label")
+            logger.exception(e)
+
+    def change_label_color(self, item):
+        """Change a label's color.
+
+        Args:
+            item: Label list item to change color for
+        """
+        try:
+            idx = self.label_list.row(item)
+            label = self.labels[idx]
+
+            color = QColorDialog.getColor(label.color, self)
+            if color.isValid():
+                label.color = color
+                item.setBackground(color)
+                self.update_overlay()
+                logger.debug(f"Changed label color for: {label.name}")
+
+        except Exception as e:
+            logger.error("Error changing label color")
+            logger.exception(e)
+
+    def remove_label(self, item):
+        """Remove a label.
+
+        Args:
+            item: Label list item to remove
+        """
+        try:
+            idx = self.label_list.row(item)
+            label = self.labels[idx]
+
+            reply = QMessageBox.question(
+                self,
+                "Confirm Removal",
+                f"Are you sure you want to remove the label '{label.name}'?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                # Remove from list and data
+                self.label_list.takeItem(idx)
+                self.labels.pop(idx)
+
+                # Reset active label if it was removed
+                if self.active_label == label:
+                    self.active_label = None if not self.labels else self.labels[0]
+
+                # Update display
+                self.update_overlay()
+
+                # Reset model training state since labels changed
+                if self.current_model is not None:
+                    self.current_model.is_trained = False
+
+                logger.info(f"Removed label: {label.name}")
+
+        except Exception as e:
+            logger.error("Error removing label")
+            logger.exception(e)
+
+    def remove_selected_label(self):
+        """Remove currently selected label."""
+        try:
+            item = self.label_list.currentItem()
+            if item is not None:
+                self.remove_label(item)
+            else:
+                QMessageBox.information(self, "Info", "Please select a label to remove")
+
+        except Exception as e:
+            logger.error("Error removing selected label")
+            logger.exception(e)
+
+    def clear_all_training(self):
+        """Clear all training data from all frames."""
+        try:
+            if not self.labels:
+                return
+
+            # Ask for confirmation
+            reply = QMessageBox.question(self, "Confirm Clear",
+                "Are you sure you want to clear all training data?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+            if reply == QMessageBox.StandardButton.Yes:
+                # Clear all masks from all labels
+                for label in self.labels:
+                    label.masks.clear()
+
+                self.update_overlay()
+                logger.info("Cleared all training data")
+
+                # Reset model training state
+                if self.current_model is not None:
+                    self.current_model.is_trained = False
+
+                QMessageBox.information(self, "Success",
+                    "All training data has been cleared")
+
+        except Exception as e:
+            logger.error("Error clearing all training data")
+            logger.exception(e)
+            QMessageBox.critical(self, "Error",
+                f"Error clearing training data: {str(e)}")
 
     def closeEvent(self, event):
         """Handle application closure.

@@ -1,0 +1,8 @@
+PyQt6>=6.4.0
+pyqtgraph>=0.13.0
+numpy>=1.21.0
+scikit-image>=0.19.0
+scipy>=1.7.0
+torch>=1.10.0
+tifffile>=2022.4.8
+scikit-learn>=1.0.0
