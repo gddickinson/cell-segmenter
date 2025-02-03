@@ -4,9 +4,9 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                            QPushButton, QRadioButton, QGroupBox, QLabel,
                            QFileDialog, QListWidget, QListWidgetItem,
                            QColorDialog, QInputDialog, QSpinBox, QComboBox,
-                           QMessageBox, QDialog, QProgressBar, QCheckBox, QMenu)
+                           QMessageBox, QDialog, QProgressBar, QCheckBox, QMenu, QMenuBar)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QAction
 import pyqtgraph as pg
 import tifffile
 from typing import Optional, Dict
@@ -17,6 +17,10 @@ from cell_segmenter.models.cnn import CNNModel
 from .paint_tool import PaintTool
 from .widgets import ProgressDialog
 from .. import config
+
+import importlib
+from .settings_dialog import SettingsDialog
+from .feature_viewer import FeatureVisualizerDialog
 
 logger = setup_logger(__name__)
 
@@ -47,6 +51,9 @@ class MainWindow(QMainWindow):
     def setup_ui(self):
         """Set up the user interface."""
         try:
+            # Set up menu bar first
+            self.setup_menu_bar()
+
             central_widget = QWidget()
             self.setCentralWidget(central_widget)
             layout = QHBoxLayout(central_widget)
@@ -748,3 +755,106 @@ class MainWindow(QMainWindow):
         except Exception as e:
             log_exception(logger, e, "Error during application closure")
             event.accept()  # Still close even if there's an error
+
+    def setup_menu_bar(self):
+        """Set up the main window menu bar."""
+        menu_bar = self.menuBar()
+
+        # File menu
+        file_menu = menu_bar.addMenu("&File")
+
+        load_action = QAction("&Load TIFF Stack", self)
+        load_action.setShortcut("Ctrl+O")
+        load_action.triggered.connect(self.load_tiff)
+        file_menu.addAction(load_action)
+
+        file_menu.addSeparator()
+
+        exit_action = QAction("E&xit", self)
+        exit_action.setShortcut("Ctrl+Q")
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        # Edit menu
+        edit_menu = menu_bar.addMenu("&Edit")
+
+        undo_action = QAction("&Undo Last", self)
+        undo_action.setShortcut("Ctrl+Z")
+        undo_action.triggered.connect(self.undo_last_training)
+        edit_menu.addAction(undo_action)
+
+        clear_action = QAction("&Clear All Training", self)
+        clear_action.triggered.connect(self.clear_all_training)
+        edit_menu.addAction(clear_action)
+
+        # Tools menu
+        tools_menu = menu_bar.addMenu("&Tools")
+
+        settings_action = QAction("&Settings...", self)
+        settings_action.triggered.connect(self.show_settings)
+        tools_menu.addAction(settings_action)
+
+        features_action = QAction("&Feature Viewer...", self)
+        features_action.triggered.connect(self.show_feature_viewer)
+        tools_menu.addAction(features_action)
+
+        # Help menu
+        help_menu = menu_bar.addMenu("&Help")
+
+        about_action = QAction("&About", self)
+        about_action.triggered.connect(self.show_about)
+        help_menu.addAction(about_action)
+
+    def show_settings(self):
+        """Show the settings dialog."""
+        dialog = SettingsDialog(self)
+        if dialog.exec():
+            # Reload configuration if settings were saved
+            self.load_configuration()
+
+    def show_about(self):
+        """Show the about dialog."""
+        QMessageBox.about(self,
+            "About Cell Segmentation Tool",
+            """<h3>Cell Segmentation Tool</h3>
+            <p>A PyQt-based application for segmenting and analyzing
+            microscopy image sequences.</p>
+            <p>Version 1.0</p>"""
+        )
+
+    def show_feature_viewer(self):
+        """Show the feature visualization dialog."""
+        if self.image_data is None:
+            QMessageBox.warning(self, "Warning",
+                "Please load an image first before viewing features.")
+            return
+
+        try:
+            dialog = FeatureVisualizerDialog(self.image_data[self.current_frame], self)
+            dialog.exec()
+        except Exception as e:
+            logger.error("Error showing feature viewer")
+            logger.exception(e)
+            QMessageBox.critical(self, "Error",
+                f"Error showing feature viewer: {str(e)}")
+
+    def load_configuration(self):
+        """Reload configuration after settings change."""
+        try:
+            from .. import config
+            importlib.reload(config)
+
+            # Update UI components with new settings
+            self.brush_size.setValue(config.DEFAULT_BRUSH_SIZE)
+
+            # Update model parameters if models exist
+            if self.current_model and isinstance(self.current_model, RandomForestModel):
+                self.current_model.n_estimators = config.RF_N_ESTIMATORS
+                self.current_model.max_depth = config.RF_MAX_DEPTH
+
+            logger.debug("Configuration reloaded")
+
+        except Exception as e:
+            logger.error(f"Error reloading configuration: {str(e)}")
+            QMessageBox.warning(self, "Warning",
+                "Error reloading configuration. Some settings may not be applied.")

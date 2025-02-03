@@ -1,0 +1,23 @@
+2025-02-03 16:50:07,118 - cell_segmenter.gui.main_window - DEBUG - UI setup completed
+2025-02-03 16:50:07,118 - cell_segmenter.gui.main_window - INFO - MainWindow initialized successfully
+2025-02-03 16:50:07,122 - __main__ - INFO - Application started
+2025-02-03 16:50:31,077 - cell_segmenter.gui.main_window - INFO - Loading TIFF file: /Users/george/Documents/python_projects/cell-segmenter/151_2019_07_29_TIRF_mKera_scratch_1_MMStack_Pos7.ome_DIC.tif
+2025-02-03 16:50:31,362 - cell_segmenter.gui.main_window - INFO - Loaded TIFF stack with shape (100, 1024, 1024)
+2025-02-03 16:52:11,056 - cell_segmenter.gui.main_window - INFO - Application closing
+2025-02-03 16:52:48,459 - cell_segmenter.gui.main_window - DEBUG - UI setup completed
+2025-02-03 16:52:48,459 - cell_segmenter.gui.main_window - INFO - MainWindow initialized successfully
+2025-02-03 16:52:48,465 - __main__ - INFO - Application started
+2025-02-03 16:53:01,432 - cell_segmenter.gui.main_window - INFO - Application closing
+2025-02-03 16:58:41,560 - cell_segmenter.gui.main_window - DEBUG - UI setup completed
+2025-02-03 16:58:41,560 - cell_segmenter.gui.main_window - INFO - MainWindow initialized successfully
+2025-02-03 16:58:41,566 - __main__ - INFO - Application started
+2025-02-03 16:58:53,427 - cell_segmenter.gui.main_window - INFO - Loading TIFF file: /Users/george/Documents/python_projects/cell-segmenter/151_2019_07_29_TIRF_mKera_scratch_1_MMStack_Pos7.ome_DIC.tif
+2025-02-03 16:58:53,707 - cell_segmenter.gui.main_window - INFO - Loaded TIFF stack with shape (100, 1024, 1024)
+2025-02-03 16:59:04,357 - cell_segmenter.models.features - DEBUG - Initialized feature extractor
+2025-02-03 16:59:04,369 - cell_segmenter.gui.feature_viewer - DEBUG - Updating feature visualization
+2025-02-03 16:59:04,370 - cell_segmenter.models.features - DEBUG - Starting feature extraction
+2025-02-03 16:59:04,373 - cell_segmenter.models.features - DEBUG - Added basic intensity feature
+2025-02-03 16:59:04,586 - cell_segmenter.models.features - DEBUG - Added multi-scale features for 3 scales
+2025-02-03 16:59:04,690 - cell_segmenter.models.features - DEBUG - Completed feature extraction. Shape: (15, 1024, 1024)
+2025-02-03 16:59:05,008 - cell_segmenter.gui.feature_viewer - DEBUG - Updated 15 features
+2025-02-03 17:02:02,053 - cell_segmenter.gui.main_window - INFO - Application closing
