@@ -1,0 +1,24 @@
+cell-segmenter/
+├── setup.py
+├── main.py
+└── cell_segmenter/
+    ├── __init__.py
+    ├── config.py
+    ├── utils/
+    │   ├── __init__.py
+    │   ├── logger.py
+    │   └── image_utils.py
+    ├── gui/
+    │   ├── __init__.py
+    │   ├── main_window.py
+    │   ├── paint_tool.py
+    │   └── widgets.py
+    ├── models/
+    │   ├── __init__.py
+    │   ├── base.py
+    │   ├── random_forest.py
+    │   ├── cnn.py
+    │   └── features.py
+    └── data/
+        ├── __init__.py
+        └── label.py
