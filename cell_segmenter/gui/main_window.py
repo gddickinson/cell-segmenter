@@ -16,6 +16,7 @@ from cell_segmenter.models.random_forest import RandomForestModel
 from cell_segmenter.models.cnn import CNNModel
 from .paint_tool import PaintTool
 from .widgets import ProgressDialog
+from .training_panel import TrainingFeaturePanel
 from .. import config
 
 import importlib
@@ -40,6 +41,7 @@ class MainWindow(QMainWindow):
         self.active_label = None
         self.overlay = None
         self.current_model = None
+        self.feature_viewer = None  # Add feature viewer reference
 
         try:
             self.setup_ui()
@@ -51,18 +53,37 @@ class MainWindow(QMainWindow):
     def setup_ui(self):
         """Set up the user interface."""
         try:
-            # Set up menu bar first
+            # Set up menu bar
             self.setup_menu_bar()
 
             central_widget = QWidget()
             self.setCentralWidget(central_widget)
             layout = QHBoxLayout(central_widget)
 
-            # Left panel with image view
+            # Left panel with controls
+            control_panel = QWidget()
+            control_layout = QVBoxLayout(control_panel)
+
+            # Add standard controls
+            self.setup_file_controls(control_layout)
+            self.setup_label_controls(control_layout)
+            self.setup_brush_controls(control_layout)
+            self.setup_mode_controls(control_layout)
+            self.setup_model_controls(control_layout)
+
+            # Add position label
+            self.pos_label = QLabel("Mouse Position: ")
+            control_layout.addWidget(self.pos_label)
+
+            control_layout.addStretch()
+            layout.addWidget(control_panel)
+
+            # Middle panel with image view
             self.setup_image_panel(layout)
 
-            # Right panel with controls
-            self.setup_control_panel(layout)
+            # Right panel for training features
+            self.training_panel = TrainingFeaturePanel(self)
+            layout.addWidget(self.training_panel)
 
             logger.debug("UI setup completed")
 
@@ -299,6 +320,28 @@ class MainWindow(QMainWindow):
                     self, "Label Name", "Enter name for the label:")
 
                 if ok and name:
+                    # Check for duplicate label name
+                    existing_names = [l.name for l in self.labels]
+                    if name in existing_names:
+                        QMessageBox.warning(
+                            self, "Duplicate Name",
+                            f"A label named '{name}' already exists. Please choose a different name."
+                        )
+                        return
+
+                    # Check for color collision (same RGB within tolerance)
+                    for existing_label in self.labels:
+                        ec = existing_label.color
+                        if (abs(ec.red() - color.red()) < 10 and
+                            abs(ec.green() - color.green()) < 10 and
+                            abs(ec.blue() - color.blue()) < 10):
+                            QMessageBox.warning(
+                                self, "Similar Color",
+                                f"The selected color is very similar to label '{existing_label.name}'. "
+                                "This may cause confusion in the overlay. Consider choosing a different color."
+                            )
+                            break
+
                     # Create new label
                     label = Label(name, color)
                     self.labels.append(label)
@@ -398,6 +441,16 @@ class MainWindow(QMainWindow):
             if self.current_model is None:
                 self.select_model(self.model_combo.currentText())
 
+            # Get selected training features
+            selected_features = self.training_panel.get_selected_features()
+            if not selected_features:
+                QMessageBox.warning(self, "Warning",
+                    "Please select features for training")
+                return
+
+            logger.info(f"Features used for training: {selected_features}")
+
+
             # Prepare labels dictionary
             labels_dict = {
                 label.name: label.masks.get(self.current_frame,
@@ -405,11 +458,14 @@ class MainWindow(QMainWindow):
                 for label in self.labels
             }
 
-            # Train model
-            self.current_model.train(self.image_data[self.current_frame],
-                                   labels_dict)
-            logger.info("Model training completed")
+            # Train model with selected features
+            self.current_model.train(
+                self.image_data[self.current_frame],
+                labels_dict,
+                selected_features=selected_features
+            )
 
+            logger.info("Model training completed")
             QMessageBox.information(self, "Success", "Model training completed")
 
         except Exception as e:
@@ -737,17 +793,15 @@ class MainWindow(QMainWindow):
                 f"Error clearing training data: {str(e)}")
 
     def closeEvent(self, event):
-        """Handle application closure.
-
-        Args:
-            event: Close event
-        """
+        """Handle application closure."""
         try:
             # Clean up resources
             if self.paint_tool is not None:
                 self.image_view.removeItem(self.paint_tool)
             if self.overlay is not None:
                 self.image_view.removeItem(self.overlay)
+            if self.feature_viewer is not None:
+                self.feature_viewer.close()
 
             logger.info("Application closing")
             event.accept()
@@ -830,8 +884,34 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            dialog = FeatureVisualizerDialog(self.image_data[self.current_frame], self)
-            dialog.exec()
+            # Log initial state
+            logger.debug(f"Current feature viewer state: {hasattr(self, 'feature_viewer')}")
+            if hasattr(self, 'feature_viewer'):
+                logger.debug(f"Existing viewer: {self.feature_viewer}")
+
+            # Create new viewer if none exists or if previous was closed
+            if not hasattr(self, 'feature_viewer') or not self.feature_viewer:
+                logger.debug("Creating new feature viewer")
+                self.feature_viewer = FeatureVisualizerDialog(
+                    self.image_data[self.current_frame], self)
+                logger.debug(f"New viewer created: {self.feature_viewer}")
+                logger.debug(f"Viewer title: {self.feature_viewer.windowTitle()}")
+                logger.debug(f"Viewer attributes: {dir(self.feature_viewer)}")
+
+            # Show the viewer
+            self.feature_viewer.show()
+            self.feature_viewer.raise_()  # Bring to front
+
+            # Log final state
+            logger.debug(f"Feature viewer displayed: {self.feature_viewer}")
+            logger.debug(f"Viewer parent: {self.feature_viewer.parent()}")
+            logger.debug(f"Main window feature_viewer attribute: {getattr(self, 'feature_viewer', None)}")
+
+        except Exception as e:
+            logger.error("Error showing feature viewer")
+            logger.exception(e)
+            QMessageBox.critical(self, "Error",
+                f"Error showing feature viewer: {str(e)}")
         except Exception as e:
             logger.error("Error showing feature viewer")
             logger.exception(e)

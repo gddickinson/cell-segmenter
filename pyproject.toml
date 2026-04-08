@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "cell_segmenter"
+version = "0.1.0"
+description = "Interactive tool for segmenting microscopy images using Random Forest and CNN classifiers"
+requires-python = ">=3.8"
+dependencies = [
+    "PyQt6>=6.4.0",
+    "pyqtgraph>=0.13.0",
+    "numpy>=1.21.0",
+    "scikit-image>=0.19.0",
+    "scipy>=1.7.0",
+    "torch>=1.10.0",
+    "tifffile>=2022.4.8",
+    "scikit-learn>=1.0.0",
+]
+
+[project.scripts]
+cell-segmenter = "cell_segmenter.gui.main_window:main"
+
+[tool.setuptools.packages.find]
+include = ["cell_segmenter*"]
