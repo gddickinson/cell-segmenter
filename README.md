@@ -173,3 +173,6 @@ If you use this tool in your research, please cite:
 ## Acknowledgments
 
 This tool was developed for cellular imaging analysis, with inspiration from tools like ilastik and other bioimage analysis software.
+
+---
+*Built with AI assistance from [Claude (Anthropic)](https://claude.com/).*
