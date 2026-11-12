@@ -25,6 +25,7 @@ LBP_RADIUS = 1
 # Model parameters
 RF_N_ESTIMATORS = 100
 RF_MAX_DEPTH = 10
+RF_RANDOM_STATE = 0  # seed of the Random Forest: same strokes -> same segmentation; None = new forest each run
 
 # CNN parameters
 CNN_BATCH_SIZE = 4

@@ -44,8 +44,8 @@ route('segment', async () => {
           <div><label for="trees">Trees</label><input type="number" id="trees" min="5" max="300" value="${d.n_estimators}"></div>
           <div><label for="depth">Max depth</label><input type="number" id="depth" min="2" max="30" value="${d.max_depth}"></div>
         </div>
-        <label for="seed">Random seed (blank = random, as the desktop app)</label>
-        <input type="number" id="seed" min="0" step="1" placeholder="random">
+        <label for="seed">Random seed (desktop default ${d.random_state ?? 'none'}; blank = a new forest each run)</label>
+        <input type="number" id="seed" min="0" step="1" placeholder="random" value="${d.random_state ?? ''}">
         <button id="segone">Segment this frame</button><button id="segall" class="alt">Segment all frames</button>
         <div class="progress" aria-hidden="true"><i id="bar"></i></div>
         <p class="status" id="status" role="status" aria-live="polite"></p>

@@ -1,7 +1,7 @@
 """The web app's demo: the synthetic DIC-like stack (utils/synthetic_stack.py) segmented by the repo's own pipeline.
 
-normalize_stack (as the GUI's Load TIFF Stack) -> RandomForestModel trained on the example strokes of frame 0 (seeded so
-the static site is reproducible; the GUI leaves the seed unset) -> predict every frame. The exported forest lets the
+normalize_stack (as the GUI's Load TIFF Stack) -> RandomForestModel trained on the example strokes of frame 0 (with the
+desktop default seed, config.RF_RANDOM_STATE, so the static site is reproducible) -> predict every frame. The exported forest lets the
 static site re-run the same prediction in the browser.
 """
 from functools import lru_cache
@@ -14,7 +14,6 @@ from cell_segmenter.utils.synthetic_stack import DEFAULTS as SYN_DEFAULTS, make_
 from cell_segmenter.web.segment_service import b64, export_forest, pack_mask, stats_for, train_and_predict
 
 LABELS = [("Background", "#3d8bff"), ("Cell", "#ffb02e")]  # label order = class index; the result mask is index > 0
-DEMO_SEED = 0
 
 
 @lru_cache(maxsize=1)
@@ -26,7 +25,7 @@ def demo_data():
     ordered = {name: strokes[name] for name, _ in LABELS}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # skimage: LBP on float images
-        r = train_and_predict(norm, 0, ordered, list(range(len(norm))), seed=DEMO_SEED)
+        r = train_and_predict(norm, 0, ordered, list(range(len(norm))))
     return dict(stack=stack, norm=norm, gt=gt, strokes=ordered, **r)
 
 
@@ -41,7 +40,7 @@ def demo_summary() -> dict:
                      "directional derivative of their phase (a DIC-like relief) with uneven illumination and camera "
                      "noise. Known cell masks let the segmentation be scored."),
         frames=t, height=h, width=w, dtype=str(d["stack"].dtype), n_cells=SYN_DEFAULTS["n_cells"],
-        seed=SYN_DEFAULTS["seed"], forest_seed=DEMO_SEED,
+        seed=SYN_DEFAULTS["seed"], forest_seed=d["model"].random_state,
         strokes={k: int(v.sum()) for k, v in d["strokes"].items()},
         accuracy=acc, gt_fraction=[float(g.mean()) for g in d["gt"]],
         objects_frame0=s0["summary"]["n_objects"],

@@ -61,17 +61,18 @@ def read_tiff_bytes(data: bytes) -> np.ndarray:
 
 
 def train_and_predict(norm: np.ndarray, train_frame: int, strokes: Dict[str, np.ndarray], frames: List[int],
-                      seed: Optional[int] = None, n_estimators: Optional[int] = None,
+                      seed="config", n_estimators: Optional[int] = None,
                       max_depth: Optional[int] = None) -> dict:
     """Train RandomForestModel on the strokes of norm[train_frame] and predict the given frames.
 
     strokes maps label names (in label order) to bool masks; the predicted value of a pixel is the index of its label,
     as in the GUI (which shows 'segmentation > 0', i.e. every label except the first, as the result mask).
+    seed: "config" (config.RF_RANDOM_STATE, the desktop default), an int, or None for a new forest every run.
     """
     kw = {k: v for k, v in dict(n_estimators=n_estimators, max_depth=max_depth).items() if v is not None}
+    if seed != "config":
+        kw["random_state"] = seed
     model = RandomForestModel(**kw)
-    if seed is not None:
-        model.classifier.random_state = seed
     t0 = time.perf_counter()
     model.train(norm[train_frame], strokes)
     t1 = time.perf_counter()

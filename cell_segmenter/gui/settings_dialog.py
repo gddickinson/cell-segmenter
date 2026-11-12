@@ -132,6 +132,14 @@ class SettingsDialog(QDialog):
         self.rf_max_depth.setRange(1, 100)
         self.rf_max_depth.setValue(self.current_settings.get('RF_MAX_DEPTH', 10))
         rf_layout.addRow("Maximum Depth:", self.rf_max_depth)
+
+        # Seed: the same strokes give the same segmentation; -1 (shown as "random") = new forest each run
+        self.rf_random_state = QSpinBox()
+        self.rf_random_state.setRange(-1, 2**31 - 1)
+        self.rf_random_state.setSpecialValueText("random")
+        seed = self.current_settings.get('RF_RANDOM_STATE', 0)
+        self.rf_random_state.setValue(-1 if seed is None else seed)
+        rf_layout.addRow("Random Seed:", self.rf_random_state)
         
         rf_group.setLayout(rf_layout)
         layout.addWidget(rf_group)
@@ -236,6 +244,7 @@ class SettingsDialog(QDialog):
             # Random Forest
             'RF_N_ESTIMATORS': self.rf_n_estimators.value(),
             'RF_MAX_DEPTH': self.rf_max_depth.value(),
+            'RF_RANDOM_STATE': None if self.rf_random_state.value() < 0 else self.rf_random_state.value(),
             
             # CNN
             'CNN_BATCH_SIZE': self.cnn_batch_size.value(),

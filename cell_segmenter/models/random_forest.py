@@ -9,27 +9,36 @@ from .base import SegmentationModel
 
 logger = setup_logger(__name__)
 
+_FROM_CONFIG = object()  # sentinel: use config.RF_RANDOM_STATE
+
 class RandomForestModel(SegmentationModel):
     """Random Forest classifier for cell segmentation."""
 
     def __init__(self,
-                n_estimators: int = config.RF_N_ESTIMATORS,
-                max_depth: int = config.RF_MAX_DEPTH):
+                n_estimators: Optional[int] = None,
+                max_depth: Optional[int] = None,
+                random_state=_FROM_CONFIG):
         """Initialize Random Forest model.
 
+        Defaults are read from config when the model is created (so Settings > Apply reaches new models).
+
         Args:
-            n_estimators: Number of trees in the forest
-            max_depth: Maximum depth of trees
+            n_estimators: Number of trees in the forest (default config.RF_N_ESTIMATORS)
+            max_depth: Maximum depth of trees (default config.RF_MAX_DEPTH)
+            random_state: Seed for bootstrap samples and feature choice (default config.RF_RANDOM_STATE, so the
+                same strokes give the same segmentation); None draws a new forest every time
         """
         super().__init__()
-        self.n_estimators = n_estimators
-        self.max_depth = max_depth
+        self.n_estimators = config.RF_N_ESTIMATORS if n_estimators is None else n_estimators
+        self.max_depth = config.RF_MAX_DEPTH if max_depth is None else max_depth
+        self.random_state = getattr(config, "RF_RANDOM_STATE", None) if random_state is _FROM_CONFIG else random_state
         self.classifier = RandomForestClassifier(
-            n_estimators=n_estimators,
-            max_depth=max_depth,
+            n_estimators=self.n_estimators,
+            max_depth=self.max_depth,
+            random_state=self.random_state,
             n_jobs=-1  # Use all available cores
         )
-        logger.debug(f"Initialized RandomForestModel with {n_estimators} trees")
+        logger.debug(f"Initialized RandomForestModel with {self.n_estimators} trees, random_state={self.random_state}")
 
     def train(self,
              image: np.ndarray,
@@ -110,6 +119,7 @@ class RandomForestModel(SegmentationModel):
                 'classifier': self.classifier,
                 'n_estimators': self.n_estimators,
                 'max_depth': self.max_depth,
+                'random_state': self.random_state,
                 'is_trained': self.is_trained
             }
             joblib.dump(model_data, path)
@@ -133,6 +143,7 @@ class RandomForestModel(SegmentationModel):
             self.classifier = model_data['classifier']
             self.n_estimators = model_data['n_estimators']
             self.max_depth = model_data['max_depth']
+            self.random_state = model_data.get('random_state', self.classifier.random_state)
             self.is_trained = model_data['is_trained']
 
             logger.info("Model loaded successfully")

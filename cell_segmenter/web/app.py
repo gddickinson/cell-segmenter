@@ -45,6 +45,7 @@ def info():
     return {
         "title": "Cell Segmenter", "version": "0.1.0",
         "defaults": {"n_estimators": config.RF_N_ESTIMATORS, "max_depth": config.RF_MAX_DEPTH,
+                     "random_state": config.RF_RANDOM_STATE,
                      "brush_size": config.DEFAULT_BRUSH_SIZE, "overlay_opacity": config.OVERLAY_OPACITY},
         "features": {"sigmas": fe.sigmas, "hessian_sigmas": fe.hessian_sigmas,
                      "gabor_frequencies": fe.gabor_frequencies, "gabor_orientations": fe.gabor_orientations,
@@ -87,7 +88,7 @@ class SegmentIn(BaseModel):
     train_frame: int = 0
     labels: List[LabelIn]
     frames: List[int]
-    seed: Optional[int] = None
+    seed: Optional[int] = None  # None = a new forest every run (the page pre-fills config.RF_RANDOM_STATE)
 
 
 @app.post("/api/segment")

@@ -65,7 +65,7 @@ def test_info_defaults_come_from_config():
     from cell_segmenter import config
     j = client.get("/api/info").json()
     assert j["defaults"] == {"n_estimators": config.RF_N_ESTIMATORS, "max_depth": config.RF_MAX_DEPTH,
-                             "brush_size": config.DEFAULT_BRUSH_SIZE, "overlay_opacity": config.OVERLAY_OPACITY}
+                             "random_state": config.RF_RANDOM_STATE, "brush_size": config.DEFAULT_BRUSH_SIZE, "overlay_opacity": config.OVERLAY_OPACITY}
     assert j["features"]["count"] == 36 and len(j["demo"]["accuracy"]) == j["demo"]["frames"]
 
 
