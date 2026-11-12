@@ -39,6 +39,24 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
         logger.exception(e)
         raise
 
+def normalize_stack(stack: np.ndarray) -> np.ndarray:
+    """Normalise each frame of a TIFF stack to [0, 1] (float64), as the GUI does on load.
+
+    A 2-D array (single-page TIFF) becomes a one-frame stack. A constant frame becomes all zeros (not NaN), matching
+    FeatureExtractor._normalize_image.
+    """
+    stack = np.asarray(stack)
+    if stack.ndim == 2:
+        stack = stack[np.newaxis]
+    if stack.ndim != 3:
+        raise ValueError(f"Expected a 2-D image or a 3-D (frames, rows, cols) stack, got shape {stack.shape}")
+    out = stack.astype(np.float64)
+    for i in range(len(out)):
+        lo, hi = out[i].min(), out[i].max()
+        out[i] = (out[i] - lo) / (hi - lo) if hi > lo else 0.0
+    return out
+
+
 def auto_contrast(image: np.ndarray, 
                  p_min: float = 2, 
                  p_max: float = 98) -> Tuple[np.ndarray, Tuple[float, float]]:

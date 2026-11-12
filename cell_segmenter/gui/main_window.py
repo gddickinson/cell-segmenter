@@ -12,6 +12,7 @@ import tifffile
 from typing import Optional, Dict
 from cell_segmenter.utils.logger import setup_logger, log_exception
 from cell_segmenter.data.label import Label
+from cell_segmenter.utils.image_utils import normalize_stack
 from cell_segmenter.models.random_forest import RandomForestModel
 from cell_segmenter.models.cnn import CNNModel
 from .paint_tool import PaintTool
@@ -286,15 +287,11 @@ class MainWindow(QMainWindow):
 
             if file_name:
                 logger.info(f"Loading TIFF file: {file_name}")
-                self.image_data = tifffile.imread(file_name)
+                raw = tifffile.imread(file_name)
 
-                if len(self.image_data.shape) == 3:
-                    # Normalize data
-                    self.image_data = self.image_data.astype(float)
-                    for i in range(len(self.image_data)):
-                        frame = self.image_data[i]
-                        frame = (frame - frame.min()) / (frame.max() - frame.min())
-                        self.image_data[i] = frame
+                if raw.ndim in (2, 3):
+                    # Normalize each frame to [0, 1] (a single page becomes a one-frame stack)
+                    self.image_data = normalize_stack(raw)
 
                     # Display first frame
                     self.image_view.setImage(self.image_data)
@@ -304,6 +301,10 @@ class MainWindow(QMainWindow):
                     # Update paint tool if active
                     if self.paint_tool:
                         self.paint_tool.image_shape = self.image_data[0].shape
+                else:
+                    QMessageBox.warning(self, "Unsupported TIFF",
+                                        f"Expected a single image or a (frames, rows, cols) stack, "
+                                        f"got shape {raw.shape}")
 
         except Exception as e:
             log_exception(logger, e, "Error loading TIFF file")
