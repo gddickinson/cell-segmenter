@@ -25,9 +25,18 @@
 - README: corrected the clone URL, "Undo/redo" (only undo, which clears the label's strokes on the frame) and
   multi-frame training (the "Use training data from all frames" checkbox is not wired up).
 
+## 2026-11-12: follow-up fixes (George: "fix ... any other problems")
+- "Use training data from all frames" now works (Random Forest; `utils/training_data.py`, `train_frames`), segmentation
+  result labels are no longer fed back as training classes, and training needs strokes for two labels. Web page has
+  the same checkbox (JS and Python engines).
+- Random Forest seeded by default (`config.RF_RANDOM_STATE = 0`, Settings > Model > Random Seed, saved with the model);
+  RandomForestModel reads config when constructed, so Settings > Apply reaches new models.
+- `main_window.py` and `feature_viewer.py` split into mixins under 500 lines, methods moved verbatim; the offscreen GUI
+  run (`tests/test_gui_offscreen.py`, PyTorch stubbed) gives the same methods, menus and workflow before and after.
+- Also fixed: Train Model refused to run until the Feature Viewer had been opened; Settings > Save wrote a config.py
+  without LOG_FILE (the app then failed to start); `pip install -e .` failed (non-existent build backend) and the
+  `cell-segmenter` command pointed at a missing `main`; the synthetic generator could loop forever.
+
 **Open / for George**
-- Wire up "Use training data from all frames" (`main_window.py` creates the checkbox but `train_model` never reads it)?
-  It would change results when ticked, so left as is.
-- `gui/main_window.py` (941 lines) and `gui/feature_viewer.py` (652) exceed the 500-line budget (pre-existing); not
-  split here because the GUI cannot be exercised without PyTorch in this environment.
-- `RandomForestModel` has no random seed, so desktop results vary run to run; the web demo sets `random_state=0`.
+- The training panel's feature selection is still ignored by the models (they always use all 36 features).
+- The CNN still trains on one frame (all-frames training is Random Forest only); the CNN was not run (no PyTorch here).

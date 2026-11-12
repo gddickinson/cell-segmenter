@@ -1,37 +1,45 @@
 # Cell Segmenter -- Interface Map
 
 ## Entry Point
-- `main.py` -- Application entry point, creates QApplication and MainWindow
+- `main.py` -- Application entry point: calls `cell_segmenter.gui.main_window.main` (also the `cell-segmenter` command)
 
 ## cell_segmenter/ Package
 - `__init__.py` -- Package metadata
-- `config.py` -- Configuration constants: paths, model params, GUI params
+- `config.py` -- Configuration constants: paths, model params (incl. `RF_RANDOM_STATE`, default 0), GUI params
+- `config_io.py` -- `current_settings`, `render_config(changes)`: the config.py text written by Settings > Save
 
 ### cell_segmenter/gui/
 - `__init__.py` -- Re-exports MainWindow, PaintTool, widgets (lazily, so paint_tool imports without PyTorch)
-- `main_window.py` -- `MainWindow(QMainWindow)`: main GUI with image display, label management, training controls
+- `main_window.py` -- `MainWindow`: state, load TIFF, brush/mode, frame change, overlay, close; `main()` entry point. Composed of mixins:
+  - `main_window_layout.py` -- `LayoutMixin`: widgets (image panel, file/label/brush/mode/model groups) and menu bar
+  - `main_window_labels.py` -- `LabelActionsMixin`: add/select/rename/recolour/remove labels, undo, clear training
+  - `main_window_model.py` -- `ModelActionsMixin`: select model, train (current frame or all frames), segment frame / all frames
+  - `main_window_tools.py` -- `ToolsMixin`: settings, about, feature viewer, configuration reload
 - `paint_tool.py` -- `PaintTool`: brush-based painting on image for labeling (uses `utils/brush.py::stamp_brush`)
 - `widgets.py` -- Custom widgets for the GUI
 - `training_panel.py` -- `TrainingPanel`: model training UI with progress indicators
-- `feature_viewer.py` -- `FeatureViewer`: visualize extracted features
-- `settings_dialog.py` -- `SettingsDialog`: application settings
+- `feature_viewer.py` -- `FeatureVisualizerDialog`: visualize extracted features (features and statistics tabs)
+  - `feature_viewer_params.py` -- `FeatureParamsMixin`: parameters tab, save/load/preset, apply to the extractor
+  - `feature_viewer_widgets.py` -- `CollapsibleGroupBox`, `FeatureParameters`
+- `settings_dialog.py` -- `SettingsDialog`: application settings (saves via `config_io.render_config`)
 
 ### cell_segmenter/models/
 - `__init__.py` -- Re-exports SegmentationModel, RandomForestModel, CNNModel, FeatureExtractor (CNN lazily: torch only needed for the CNN)
-- `base.py` -- `SegmentationModel`: abstract base class for segmentation models
-- `random_forest.py` -- `RandomForestModel(SegmentationModel)`: scikit-learn Random Forest classifier
+- `base.py` -- `SegmentationModel`: abstract base class; `prepare_training_data`, `prepare_training_data_frames`
+- `random_forest.py` -- `RandomForestModel(SegmentationModel)`: scikit-learn Random Forest; defaults read from config at construction (trees, depth, seed); `train`, `train_frames`, `predict`, save/load
 - `cnn.py` -- `CNNModel(SegmentationModel)`: PyTorch CNN classifier
 - `features.py` -- `FeatureExtractor`: multi-scale feature extraction (Gaussian, edge, LBP, Hessian, Gabor)
 
 ### cell_segmenter/data/
 - `__init__.py` -- Re-exports Label
-- `label.py` -- `Label` dataclass: name, color, frame-indexed masks with merge/clear ops
+- `label.py` -- `Label` dataclass: name, color, frame-indexed masks with merge/clear ops, `is_result` (segmentation results are not training data)
 
 ### cell_segmenter/utils/
 - `__init__.py` -- Re-exports image utilities and logger
 - `image_utils.py` -- Image manipulation: normalize, `normalize_stack` (per-frame [0,1], used by Load TIFF Stack and the web app), enhance
 - `brush.py` -- `brush_disk`, `stamp_brush(mask, row, col, size)`: the paint brush, clipped at the edges (Qt-free)
 - `synthetic_stack.py` -- `make_synthetic_stack()`: seeded synthetic DIC-like uint16 stack + known cell masks + example strokes (web demo, tests)
+- `training_data.py` -- `gather_training_data(labels, frame, all_frames, shape)`, `n_classes_painted`: strokes to train on (Qt-free)
 - `object_stats.py` -- `label_objects`, `object_stats(mask, image, um_per_px, min_area_px)`: 8-connected objects and regionprops (Qt-free)
 - `logger.py` -- `setup_logger()`: logging configuration
 
@@ -61,7 +69,9 @@
 
 ## tests/
 - `test_models.py` -- Tests for FeatureExtractor, Label, and module imports
-- `test_imports_without_torch.py`, `test_brush.py`, `test_normalize_stack.py` -- regression tests for the 2026-11 fixes
+- `test_imports_without_torch.py`, `test_brush.py`, `test_normalize_stack.py`, `test_config_io.py`, `test_random_forest_seed.py`,
+  `test_training_data.py`, `test_packaging.py` -- regression tests for the 2026-11 fixes
+- `test_gui_offscreen.py` (+ `gui_scripts/gui_smoke.py`) -- MainWindow, feature viewer, all-frames training offscreen (PyTorch stubbed)
 - `test_web.py` -- API endpoints, static build, node engine tests
 - `test_web_engine.py` -- fixtures current, JS TIFF writer readable by tifffile, synthetic stack, object stats
 

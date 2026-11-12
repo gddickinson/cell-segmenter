@@ -15,8 +15,9 @@ route('method', async () => {
       (<code>utils/image_utils.py::normalize_stack</code>).</li>
     <li><b>Create labels</b>, e.g. background and cell. The order matters: label 0 is the first one.</li>
     <li><b>Paint</b> strokes for each label on one frame (brush of radius size/2, <code>utils/brush.py</code>).</li>
-    <li><b>Train</b>: every painted pixel of the current frame becomes one training sample with its 36 feature values
-      and its label index (<code>models/base.py::prepare_training_data</code>).</li>
+    <li><b>Train</b>: every painted pixel of the current frame (or of every frame, with “Use training data from all
+      frames”) becomes one training sample with its 36 feature values and its label index
+      (<code>models/base.py::prepare_training_data</code>, <code>utils/training_data.py</code>).</li>
     <li><b>Segment</b> the current frame or all frames: every pixel gets the label the forest votes for. The result mask is
       every label except the first (<code>segmentation &gt; 0</code> in <code>gui/main_window.py</code>).</li>
   </ol>
@@ -30,7 +31,7 @@ route('method', async () => {
   <h2>Classifier (<code>models/random_forest.py</code>)</h2>
   <p>scikit-learn <code>RandomForestClassifier</code> with ${d.n_estimators} trees and maximum depth ${d.max_depth}
     (<code>config.py</code>), otherwise default settings: bootstrap samples, √36 = 6 candidate features per split, Gini
-    impurity. The desktop app also offers a small CNN (PyTorch, <code>models/cnn.py</code>); it is not part of the web version.</p>
+    impurity, seed <code>RF_RANDOM_STATE</code> = ${d.random_state ?? 'none'} so the same strokes give the same result. The desktop app also offers a small CNN (PyTorch, <code>models/cnn.py</code>); it is not part of the web version.</p>
   <h2>The web version and its checks</h2>
   <ul>
     <li><b>Feature extraction</b>: a JavaScript port (<code>features.js</code>, <code>filters.js</code>) reproducing the

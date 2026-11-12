@@ -15,7 +15,7 @@ A PyQt-based application for segmenting and analyzing microscopy image sequences
   - Multiple label classes
   - "Undo Last" (clears the selected label's strokes on the current frame)
   - Label class editing and removal
-  - Training uses the strokes of the current frame (the "Use training data from all frames" checkbox is not wired up yet)
+  - Train on the current frame's strokes, or tick "Use training data from all frames" (Random Forest) to use every frame's strokes
 
 ## Installation
 
@@ -80,7 +80,8 @@ python main.py
 
 4. **Train Model**
    - Choose between Random Forest and CNN
-   - Training uses the strokes painted on the current frame (the "Use training data from all frames" checkbox has no effect yet)
+   - Training uses the strokes painted on the current frame; tick "Use training data from all frames" to use the strokes of every frame (Random Forest; the CNN uses the current frame)
+   - The Random Forest is seeded (Settings > Model > Random Seed, `RF_RANDOM_STATE` in `config.py`, default 0), so the same strokes give the same result; "random" draws a new forest each run
    - Click "Train Model" to train the classifier
 
 5. **Segment Images**
@@ -204,7 +205,7 @@ If you use this tool in your research, please cite:
 2. **Training**
    - If segmentation quality is poor, try adding more training data
    - Ensure training data includes examples of all relevant structures
-   - Paint on the frame you train on: training uses the current frame's strokes
+   - Try training on strokes from several frames ("Use training data from all frames")
 
 3. **Memory Issues**
    - For large image stacks, consider processing fewer frames at a time
