@@ -13,9 +13,9 @@ A PyQt-based application for segmenting and analyzing microscopy image sequences
 - Batch processing capabilities
 - Training data management:
   - Multiple label classes
-  - Undo/redo functionality
+  - "Undo Last" (clears the selected label's strokes on the current frame)
   - Label class editing and removal
-  - Option to use training data from single or multiple frames
+  - Training uses the strokes of the current frame (the "Use training data from all frames" checkbox is not wired up yet)
 
 ## Installation
 
@@ -43,8 +43,8 @@ Main dependencies include:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/cell-segmentation-tool.git
-cd cell-segmentation-tool
+git clone https://github.com/gddickinson/cell-segmenter.git
+cd cell-segmenter
 ```
 
 2. Install in development mode:
@@ -80,7 +80,7 @@ python main.py
 
 4. **Train Model**
    - Choose between Random Forest and CNN
-   - Select whether to use training data from current frame or all frames
+   - Training uses the strokes painted on the current frame (the "Use training data from all frames" checkbox has no effect yet)
    - Click "Train Model" to train the classifier
 
 5. **Segment Images**
@@ -91,7 +91,7 @@ python main.py
 ### Advanced Features
 
 - **Training Data Management**
-  - "Undo Last" removes the last added training data
+  - "Undo Last" removes the selected label's training strokes on the current frame
   - "Clear All" removes all training data
   - Right-click labels to rename, change color, or remove them
 
@@ -128,7 +128,7 @@ Two classification approaches are available:
 
 ### File Format Support
 
-- Supports TIFF stacks (txy format)
+- Supports TIFF stacks (txy format); a single-page TIFF is loaded as a one-frame stack
 - Handles both 8-bit and 16-bit images
 - Automatic normalization of input data
 
@@ -159,7 +159,7 @@ If you use this tool in your research, please cite:
 2. **Training**
    - If segmentation quality is poor, try adding more training data
    - Ensure training data includes examples of all relevant structures
-   - Try using multi-frame training data for better results
+   - Paint on the frame you train on: training uses the current frame's strokes
 
 3. **Memory Issues**
    - For large image stacks, consider processing fewer frames at a time
