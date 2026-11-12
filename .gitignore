@@ -1,1 +1,9 @@
 151_2019_07_29_TIRF_mKera_scratch_1_MMStack_Pos7.ome_DIC.tif
+
+# Runtime logs written by utils/logger.py (rotating, in the package directory)
+cell_segmenter/cell_segmentation.log*
+__pycache__/
+*.pyc
+.pytest_cache/
+# static site build
+site/
