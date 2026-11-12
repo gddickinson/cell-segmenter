@@ -65,6 +65,15 @@ w.paint_tool.paint_at_pos(95, 79)            # bottom-right corner (regression o
 w.set_tool_mode("navigate")
 
 mode = sys.argv[1] if len(sys.argv) > 1 else "basic"
+if mode == "viewer":
+    w.show_feature_viewer()
+    fv = w.feature_viewer
+    fv.update_features()
+    out["viewer_checkboxes"] = sorted(fv.feature_checkboxes)
+    out["viewer_params"] = sorted(fv.feature_params.get_values()) if hasattr(fv, "feature_params") else None
+    fv.update_feature_extractor()
+    w.training_panel.update_feature_list()
+    out["panel_features"] = sorted(w.training_panel.get_selected_features())
 w.current_frame = 1
 w.train_model()
 out["train1_classes"] = [int(c) for c in w.current_model.classifier.classes_]

@@ -28,3 +28,10 @@ def test_main_window_workflow():
     assert out["train1_classes"] == [0, 1]
     assert out["result_frames"] == [0, 1, 2] and min(out["result_agreement"]) > 0.6
     assert not [m for m in out["messages"] if m[0] == "critical"], out["messages"]
+
+
+def test_feature_viewer_and_training_panel():
+    out = run("viewer")
+    assert len(out["viewer_checkboxes"]) >= 8 and out["panel_features"]
+    assert out["train1_classes"] == [0, 1]
+    assert not [m for m in out["messages"] if m[0] == "critical"], out["messages"]
