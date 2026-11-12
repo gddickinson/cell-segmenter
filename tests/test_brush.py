@@ -3,12 +3,18 @@
 Painting near the bottom or right edge used to raise "operands could not be broadcast together"
 because the brush was not cropped at the far edge (see cell_segmentation.log, 2025-04-14).
 """
+import importlib.util
+import subprocess
+import sys
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 from cell_segmenter.utils.brush import brush_disk, stamp_brush
 
-_QAPP = None  # keeps the offscreen QApplication alive for the GUI test
+ROOT = Path(__file__).resolve().parent.parent
+
 
 
 def test_disk_shape():
@@ -40,23 +46,31 @@ def test_stamp_merges():
     assert mask[0, 0] and mask[10, 10]
 
 
-def test_paint_tool_paints_at_bottom_right_edge(monkeypatch):
-    """The GUI's PaintTool must paint (not log a broadcast error) at the image edge."""
-    pytest.importorskip("PyQt6")
-    pytest.importorskip("pyqtgraph")
-    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
-    from types import SimpleNamespace
-    from PyQt6.QtWidgets import QApplication
-    import pyqtgraph as pg
-    from cell_segmenter.gui.paint_tool import PaintTool
-    global _QAPP
-    _QAPP = QApplication.instance() or QApplication([])
-    tool = PaintTool(pg.ImageView())
-    tool.brush_size = 5
-    tool.image_shape = (55, 55)
-    label = SimpleNamespace(masks={})
-    tool.parent_window = SimpleNamespace(current_frame=0, active_label=label, update_overlay=lambda: None)
-    tool.paint_at_pos(54, 54)   # x, y
-    tool.paint_at_pos(0, 54)
-    mask = label.masks[0]
-    assert mask[54, 54] and mask[54, 0]
+PAINT_CODE = """
+from types import SimpleNamespace
+from PyQt6.QtWidgets import QApplication
+import pyqtgraph as pg
+from cell_segmenter.gui.paint_tool import PaintTool
+app = QApplication.instance() or QApplication([])
+tool = PaintTool(pg.ImageView())
+tool.brush_size = 5
+tool.image_shape = (55, 55)
+label = SimpleNamespace(masks={})
+tool.parent_window = SimpleNamespace(current_frame=0, active_label=label, update_overlay=lambda: None)
+tool.paint_at_pos(54, 54)   # x, y
+tool.paint_at_pos(0, 54)
+mask = label.masks[0]
+print('PAINTED', bool(mask[54, 54]), bool(mask[54, 0]))
+"""
+
+
+@pytest.mark.skipif(not all(importlib.util.find_spec(m) for m in ("PyQt6", "pyqtgraph")), reason="needs PyQt6")
+def test_paint_tool_paints_at_bottom_right_edge():
+    """The GUI's PaintTool must paint (not log a broadcast error) at the image edge.
+
+    Runs in a subprocess with a fresh Qt: other packages in a shared environment (e.g. PySide6) can load a different
+    QtCore into the pytest process first.
+    """
+    r = subprocess.run([sys.executable, "-c", PAINT_CODE], cwd=ROOT, capture_output=True, text=True, timeout=120,
+                       env={"QT_QPA_PLATFORM": "offscreen", "PYQTGRAPH_QT_LIB": "PyQt6", "PATH": "/usr/bin:/bin"})
+    assert "PAINTED True True" in r.stdout, (r.stdout + r.stderr)[-2000:]

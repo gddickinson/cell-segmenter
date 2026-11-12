@@ -27,5 +27,5 @@ print('ok')
 
 def test_import_without_torch():
     r = subprocess.run([sys.executable, "-c", CODE], cwd=ROOT, capture_output=True, text=True,
-                       env={"QT_QPA_PLATFORM": "offscreen", "PATH": "/usr/bin:/bin"})
+                       env={"QT_QPA_PLATFORM": "offscreen", "PYQTGRAPH_QT_LIB": "PyQt6", "PATH": "/usr/bin:/bin"})
     assert r.returncode == 0 and r.stdout.strip().endswith("ok"), r.stderr[-800:]

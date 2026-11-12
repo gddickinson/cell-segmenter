@@ -1,4 +1,5 @@
 """The desktop MainWindow constructs and runs the train / segment workflow offscreen (PyTorch stubbed if absent)."""
+import importlib.util
 import json
 import subprocess
 import sys
@@ -8,13 +9,15 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "tests" / "gui_scripts" / "gui_smoke.py"
-pytest.importorskip("PyQt6")
-pytest.importorskip("pyqtgraph")
+# The GUI runs in a subprocess; only check here that the packages exist (importing Qt/pyqtgraph into the pytest
+# process itself can fail on library mismatches that do not affect the subprocess).
+pytestmark = pytest.mark.skipif(not all(importlib.util.find_spec(m) for m in ("PyQt6", "pyqtgraph")),
+                                reason="PyQt6/pyqtgraph not installed")
 
 
 def run(mode):
     r = subprocess.run([sys.executable, str(SCRIPT), mode], capture_output=True, text=True, timeout=300,
-                       env={"QT_QPA_PLATFORM": "offscreen", "PATH": "/usr/bin:/bin"})
+                       env={"QT_QPA_PLATFORM": "offscreen", "PYQTGRAPH_QT_LIB": "PyQt6", "PATH": "/usr/bin:/bin"})
     line = [l for l in r.stdout.splitlines() if l.startswith("RESULT ")]
     assert r.returncode == 0 and line, (r.stdout + r.stderr)[-3000:]
     return json.loads(line[0][7:])
