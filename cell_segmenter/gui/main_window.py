@@ -442,9 +442,10 @@ class MainWindow(QMainWindow):
             if self.current_model is None:
                 self.select_model(self.model_combo.currentText())
 
-            # Get selected training features
+            # Get selected training features. The panel lists features only after the Feature Viewer has been
+            # opened; until then every feature is used (the models always extract the full feature set).
             selected_features = self.training_panel.get_selected_features()
-            if not selected_features:
+            if self.training_panel.feature_items and not selected_features:
                 QMessageBox.warning(self, "Warning",
                     "Please select features for training")
                 return
