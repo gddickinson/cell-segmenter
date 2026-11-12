@@ -195,3 +195,19 @@ class MainWindow(LayoutMixin, LabelActionsMixin, ModelActionsMixin, ToolsMixin, 
         except Exception as e:
             log_exception(logger, e, "Error during application closure")
             event.accept()  # Still close even if there's an error
+
+
+def main():
+    """Run the desktop application (the `cell-segmenter` command and main.py)."""
+    import sys
+    from PyQt6.QtWidgets import QApplication
+    try:
+        app = QApplication(sys.argv)
+        window = MainWindow()
+        window.show()
+        logger.info("Application started")
+        sys.exit(app.exec())
+    except Exception as e:
+        logger.error(f"Fatal error: {str(e)}")
+        logger.exception(e)
+        sys.exit(1)
