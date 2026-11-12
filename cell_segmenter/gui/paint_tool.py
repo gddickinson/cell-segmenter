@@ -3,6 +3,7 @@ import numpy as np
 from PyQt6.QtCore import Qt, QRectF
 import pyqtgraph as pg
 from ..utils.logger import setup_logger
+from ..utils.brush import stamp_brush
 
 logger = setup_logger(__name__)
 
@@ -112,29 +113,9 @@ class PaintTool(pg.GraphicsObject):
             
             mask = self.parent_window.active_label.masks[current_frame]
             
-            # Create circular brush
-            y_idx, x_idx = np.ogrid[-self.brush_size:self.brush_size+1,
-                                  -self.brush_size:self.brush_size+1]
-            dist = np.sqrt(x_idx*x_idx + y_idx*y_idx)
-            brush = dist <= self.brush_size/2
-            
-            # Calculate brush bounds
-            y_start = max(0, y - self.brush_size)
-            y_end = min(self.image_shape[0], y + self.brush_size + 1)
-            x_start = max(0, x - self.brush_size)
-            x_end = min(self.image_shape[1], x + self.brush_size + 1)
-            
-            # Calculate brush array bounds
-            brush_y_start = max(0, -(y - self.brush_size))
-            brush_y_end = brush.shape[0] - max(0, y_end - self.image_shape[0])
-            brush_x_start = max(0, -(x - self.brush_size))
-            brush_x_end = brush.shape[1] - max(0, x_end - self.image_shape[1])
-            
-            # Apply brush
-            mask[y_start:y_end, x_start:x_end] |= \
-                brush[brush_y_start:brush_y_end,
-                      brush_x_start:brush_x_end]
-            
+            # Apply the circular brush, clipped at the image edges
+            stamp_brush(mask, y, x, self.brush_size)
+
             # Update display
             self.parent_window.update_overlay()
             
