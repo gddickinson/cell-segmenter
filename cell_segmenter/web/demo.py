@@ -25,7 +25,7 @@ def demo_data():
     ordered = {name: strokes[name] for name, _ in LABELS}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # skimage: LBP on float images
-        r = train_and_predict(norm, 0, ordered, list(range(len(norm))))
+        r = train_and_predict(norm, [(0, ordered)], list(range(len(norm))))
     return dict(stack=stack, norm=norm, gt=gt, strokes=ordered, **r)
 
 

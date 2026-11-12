@@ -6,7 +6,7 @@ import base64
 import io
 import logging
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -60,12 +60,14 @@ def read_tiff_bytes(data: bytes) -> np.ndarray:
     return tifffile.imread(io.BytesIO(data))
 
 
-def train_and_predict(norm: np.ndarray, train_frame: int, strokes: Dict[str, np.ndarray], frames: List[int],
+def train_and_predict(norm: np.ndarray, training: List[Tuple[int, Dict[str, np.ndarray]]], frames: List[int],
                       seed="config", n_estimators: Optional[int] = None,
                       max_depth: Optional[int] = None) -> dict:
-    """Train RandomForestModel on the strokes of norm[train_frame] and predict the given frames.
+    """Train RandomForestModel on painted strokes and predict the given frames.
 
-    strokes maps label names (in label order) to bool masks; the predicted value of a pixel is the index of its label,
+    training is [(frame, {label name: bool mask})] (utils.training_data.gather_training_data): one frame trains with
+    RandomForestModel.train, several with train_frames ("Use training data from all frames"). Label names are in label
+    order in every dict; the predicted value of a pixel is the index of its label,
     as in the GUI (which shows 'segmentation > 0', i.e. every label except the first, as the result mask).
     seed: "config" (config.RF_RANDOM_STATE, the desktop default), an int, or None for a new forest every run.
     """
@@ -74,7 +76,10 @@ def train_and_predict(norm: np.ndarray, train_frame: int, strokes: Dict[str, np.
         kw["random_state"] = seed
     model = RandomForestModel(**kw)
     t0 = time.perf_counter()
-    model.train(norm[train_frame], strokes)
+    if len(training) == 1:
+        model.train(norm[training[0][0]], training[0][1])
+    else:
+        model.train_frames([norm[f] for f, _ in training], [d for _, d in training])
     t1 = time.perf_counter()
     preds = {f: model.predict(norm[f]).astype(np.uint8) for f in frames}
     t2 = time.perf_counter()

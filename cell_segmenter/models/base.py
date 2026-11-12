@@ -57,6 +57,21 @@ class SegmentationModel(ABC):
             logger.exception(e)
             raise
     
+    def prepare_training_data_frames(self, images, labels_dicts) -> Tuple[np.ndarray, np.ndarray]:
+        """Training samples from several frames: prepare_training_data per frame, concatenated.
+
+        Every labels_dict must list the same labels in the same order, so class indices agree across frames.
+        """
+        X, y = [], []
+        for image, labels_dict in zip(images, labels_dicts):
+            if any(np.any(m) for m in labels_dict.values()):
+                Xf, yf = self.prepare_training_data(image, labels_dict)
+                X.append(Xf)
+                y.append(yf)
+        if not X:
+            raise ValueError("No labeled pixels found in any class")
+        return np.vstack(X), np.concatenate(y)
+
     @abstractmethod
     def train(self, 
              image: np.ndarray,

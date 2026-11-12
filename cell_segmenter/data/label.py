@@ -15,10 +15,12 @@ class Label:
         name: Label name
         color: QColor for display
         masks: Dictionary mapping frame numbers to boolean masks
+        is_result: True for labels holding a segmentation result (never used as training data)
     """
     name: str
     color: QColor
     masks: Dict[int, np.ndarray] = field(default_factory=dict)
+    is_result: bool = False
     
     def add_mask(self, frame: int, mask: np.ndarray) -> None:
         """Add or update mask for a specific frame.

@@ -22,6 +22,7 @@ from .paint_tool import PaintTool
 from .widgets import ProgressDialog
 from .training_panel import TrainingFeaturePanel
 from .. import config
+from ..utils.training_data import gather_training_data, n_classes_painted
 
 import importlib
 from .settings_dialog import SettingsDialog
@@ -70,19 +71,32 @@ class ModelActionsMixin:
             logger.info(f"Features used for training: {selected_features}")
 
 
-            # Prepare labels dictionary
-            labels_dict = {
-                label.name: label.masks.get(self.current_frame,
-                    np.zeros_like(self.image_data[0], dtype=bool))
-                for label in self.labels
-            }
+            # Strokes of the current frame, or of every frame when "Use training data from all frames" is
+            # ticked (Random Forest; the CNN trains on one frame). Segmentation results are never training data.
+            all_frames = self.use_all_frames.isChecked()
+            if all_frames and not isinstance(self.current_model, RandomForestModel):
+                QMessageBox.information(self, "Info",
+                    "Training on all frames is available for the Random Forest; the CNN uses the current frame.")
+                all_frames = False
+            data = gather_training_data(self.labels, self.current_frame, all_frames, self.image_data[0].shape)
+            if n_classes_painted(data) < 2:
+                where = "any frame" if all_frames else f"frame {self.current_frame}"
+                QMessageBox.warning(self, "Warning",
+                    f"Paint training strokes for at least two labels on {where} first")
+                return
 
-            # Train model with selected features
-            self.current_model.train(
-                self.image_data[self.current_frame],
-                labels_dict,
-                selected_features=selected_features
-            )
+            if all_frames:
+                self.current_model.train_frames(
+                    [self.image_data[f] for f, _ in data], [d for _, d in data],
+                    selected_features=selected_features)
+                logger.info(f"Trained on frames {[f for f, _ in data]}")
+            else:
+                # Train model with selected features
+                self.current_model.train(
+                    self.image_data[self.current_frame],
+                    data[0][1],
+                    selected_features=selected_features
+                )
 
             logger.info("Model training completed")
             QMessageBox.information(self, "Success", "Model training completed")
@@ -106,7 +120,8 @@ class ModelActionsMixin:
             # Create new label for result
             result_label = Label(
                 f"Segmentation_{len(self.labels)}",
-                QColor(255, 165, 0)  # Orange
+                QColor(255, 165, 0),  # Orange
+                is_result=True
             )
             result_label.masks[self.current_frame] = segmentation > 0
             self.labels.append(result_label)
@@ -144,7 +159,8 @@ class ModelActionsMixin:
             # Create new label for results
             result_label = Label(
                 f"Segmentation_{len(self.labels)}",
-                QColor(255, 165, 0)  # Orange
+                QColor(255, 165, 0),  # Orange
+                is_result=True
             )
 
             # Process each frame

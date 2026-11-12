@@ -35,3 +35,17 @@ def test_feature_viewer_and_training_panel():
     assert len(out["viewer_checkboxes"]) >= 8 and out["panel_features"]
     assert out["train1_classes"] == [0, 1]
     assert not [m for m in out["messages"] if m[0] == "critical"], out["messages"]
+
+
+def test_train_on_all_frames_and_seed():
+    """'Use training data from all frames' gathers strokes from every frame; results are not training data."""
+    out = run("extended")
+    assert out["random_state"] == out["config_random_state"] == out["settings_seed"] == 0
+    # frame 0 has only Background strokes: training on it alone is refused with a message
+    assert out["frame0_only_messages"] and out["frame0_only_messages"][0][0] == "warning"
+    assert "two labels" in out["frame0_only_messages"][0][2]
+    # ticked: Background (frames 0, 1) and Cell (frame 1) are all used, the segmentation results are not
+    assert out["all_frames_classes"] == [0, 1]
+    assert out["all_frames_n_train"] == out["expected_n_train"]
+    assert out["result_labels_flagged"] == [False, False, True, True]
+    assert out["reproducible"]

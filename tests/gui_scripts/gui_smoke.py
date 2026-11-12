@@ -59,7 +59,7 @@ for name, col, frame_masks in (("Background", QColor(0, 0, 255), {0: strokes["Ba
     w.labels.append(lab)
     item = QListWidgetItem(name)
     w.label_list.addItem(item)
-w.select_label(w.label_list.item(1))
+w.select_label(w.label_list.item(0))
 w.set_tool_mode("paint")
 w.paint_tool.paint_at_pos(95, 79)            # bottom-right corner (regression of the edge fix)
 w.set_tool_mode("navigate")
@@ -92,16 +92,19 @@ if mode == "extended":
     # current frame 0 has only Background strokes: training on it alone cannot learn two classes
     w.current_frame = 0
     w.use_all_frames.setChecked(False)
+    messages.clear()
     w.train_model()
-    out["frame0_only_messages"] = [m for m in messages if m[0] != "information"][-1:]
+    out["frame0_only_messages"] = [list(m) for m in messages]
     w.use_all_frames.setChecked(True)
     messages.clear()
     w.train_model()
     m = w.current_model
     out["all_frames_classes"] = [int(c) for c in m.classifier.classes_]
     out["all_frames_n_train"] = int(m.n_training_samples)
-    out["expected_n_train"] = int(strokes["Background"].sum() * 2 + strokes["Cell"].sum() + w.labels[1].masks[0].sum())
-    out["result_labels_excluded"] = all(lab.is_result for lab in w.labels[2:])
+    out["expected_n_train"] = int(sum(m.sum() for lab in w.labels[:2] for m in lab.masks.values()))
+    out["result_labels_flagged"] = [lab.is_result for lab in w.labels]
+    from cell_segmenter.gui.settings_dialog import SettingsDialog
+    out["settings_seed"] = SettingsDialog(w).collect_settings()["RF_RANDOM_STATE"]
     # reproducible: two trainings with the default seed give the same prediction
     p1 = m.predict(w.image_data[2])
     w.train_model()

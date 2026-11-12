@@ -1,7 +1,8 @@
 // Web Worker: feature extraction, forest training and prediction off the main thread (the desktop app's rule: never
 // compute on the UI thread). Messages { id, type, ... } -> replies { id, ok, result } / { id, error } / { id, progress }.
 //   load    { frames: [TypedArray raw], H, W }       normalise each frame as normalize_stack (per-frame min-max)
-//   train   { frame, masks: [Uint8Array per label], n_estimators, max_depth, seed }   -> { n_train, classes, trees, nodes }
+//   train   { training: [{ frame, masks: [Uint8Array per label] }], n_estimators, max_depth, seed }
+//           -> { n_train, classes, trees, nodes }  (several frames = "use training data from all frames")
 //   forest  { forest: exported JSON }                 use a forest trained by Python
 //   predict { frames: [i] }                           -> { [i]: Uint8Array label index per pixel }
 //   feature { frame, k }                              -> Float32Array feature map k
@@ -25,12 +26,16 @@ const handlers = {
     H = h; W = w; norm = frames.map(fr => normalize(fr)); cache.clear(); forest = null;
     return { frames: norm.length };
   },
-  train({ frame, masks, n_estimators, max_depth, seed }, report) {
-    const F = features(frame, report), X = F.map(() => []), y = [];
-    masks.forEach((m, label) => {
-      for (let i = 0; i < H * W; i++) if (m[i]) { y.push(label); F.forEach((f, k) => X[k].push(f[i])); }
-    });
-    if (new Set(y).size < 2) throw new Error('Paint strokes for at least two labels on this frame');
+  train({ training, n_estimators, max_depth, seed }, report) {
+    const X = [], y = [];
+    for (const { frame, masks } of training) {
+      const F = features(frame, report);
+      if (!X.length) F.forEach(() => X.push([]));
+      masks.forEach((m, label) => {
+        for (let i = 0; i < H * W; i++) if (m[i]) { y.push(label); F.forEach((f, k) => X[k].push(f[i])); }
+      });
+    }
+    if (new Set(y).size < 2) throw new Error('Paint strokes for at least two labels first');
     forest = trainForest(X.map(a => Float32Array.from(a)), y, { n_estimators, max_depth, seed,
       onTree: (t, n) => report({ stage: 'training trees', done: t, total: n }) });
     return { n_train: y.length, classes: forest.classes, trees: forest.trees.length,

@@ -120,3 +120,16 @@ def test_b64_roundtrip():
     assert np.array_equal(unb64(b64(a, np.float64), np.float64, (3, 4)), a)
     m = a > 0.5
     assert np.array_equal(unpack_mask(pack_mask(m), m.shape), m)
+
+
+def test_segment_all_frames_gathers_strokes():
+    from cell_segmenter.utils.synthetic_stack import make_synthetic_stack
+    st, gt, strokes = make_synthetic_stack(n_frames=2, shape=(64, 72), n_cells=3, seed=2)
+    sid = _upload(st).json()["id"]
+    labels = [{"name": "Background", "masks": {"0": pack_mask(strokes["Background"])}},
+              {"name": "Cell", "masks": {"1": pack_mask(strokes["Cell"])}}]
+    body = {"stack": sid, "train_frame": 0, "frames": [1], "labels": labels}
+    assert client.post("/api/segment", json=body).status_code == 400          # frame 0 alone has one label
+    j = client.post("/api/segment", json={**body, "all_frames": True}).json()
+    assert j["train_frames"] == [0, 1] and j["classes"] == [0, 1]
+    assert j["n_train"] == int(strokes["Background"].sum() + strokes["Cell"].sum())

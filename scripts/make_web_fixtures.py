@@ -48,7 +48,7 @@ def forest_case():
     norm = normalize_stack(stack)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        r = train_and_predict(norm, 0, strokes, [0], seed=0, n_estimators=10)
+        r = train_and_predict(norm, [(0, strokes)], [0], seed=0, n_estimators=10)
         model = r["model"]
         X, y = model.prepare_training_data(norm[0], strokes)
         crop = norm[1][CROP[0], CROP[1]]

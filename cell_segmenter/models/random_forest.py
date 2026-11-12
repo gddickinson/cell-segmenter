@@ -56,7 +56,34 @@ class RandomForestModel(SegmentationModel):
 
             # Prepare training data
             X, y = self.prepare_training_data(image, labels_dict)
+            self._fit(X, y)
 
+        except Exception as e:
+            logger.error("Error during Random Forest training")
+            logger.exception(e)
+            raise
+
+    def train_frames(self, images, labels_dicts, **kwargs) -> None:
+        """Train on the strokes of several frames at once ("Use training data from all frames").
+
+        Args:
+            images: Training images (one per frame)
+            labels_dicts: One dict per image mapping label names (same order everywhere) to boolean masks
+        """
+        try:
+            logger.info(f"Starting Random Forest training on {len(images)} frames")
+            for image in images:
+                self.validate_image(image)
+            X, y = self.prepare_training_data_frames(images, labels_dicts)
+            self._fit(X, y)
+        except Exception as e:
+            logger.error("Error during Random Forest training")
+            logger.exception(e)
+            raise
+
+    def _fit(self, X: np.ndarray, y: np.ndarray) -> None:
+        """Fit the classifier on prepared samples."""
+        try:
             # Train classifier
             logger.debug("Fitting Random Forest classifier")
             self.classifier.fit(X, y)
@@ -66,6 +93,7 @@ class RandomForestModel(SegmentationModel):
             for idx, importance in enumerate(importances):
                 logger.debug(f"Feature {idx} importance: {importance:.4f}")
 
+            self.n_training_samples = int(len(y))
             self.is_trained = True
             logger.info("Random Forest training completed")
 

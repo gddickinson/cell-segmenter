@@ -83,27 +83,45 @@ export function strokesOn(frame) {
   return S.labels.map(l => l.masks.get(frame) || new Uint8Array(S.stack.H * S.stack.W));
 }
 
-// Train on the strokes of the current frame and predict `frames`, with the Python server or the JS port.
-export async function segment(frames, { engine, n_estimators, max_depth, seed }, onProgress) {
-  const st = S.stack, trainFrame = S.frame, masks = strokesOn(trainFrame);
+// Frames used for training: the current one, or every frame with strokes ("use training data from all frames",
+// as utils/training_data.py::gather_training_data).
+export function trainingFrames(allFrames) {
+  if (!allFrames) return [S.frame];
+  const fs = new Set();
+  for (const l of S.labels) for (const [f, m] of l.masks) if (m.some(v => v)) fs.add(f);
+  return [...fs].sort((a, b) => a - b);
+}
+
+// Number of labels with strokes on the given frames.
+export function classesPainted(fs) {
+  return S.labels.filter(l => fs.some(f => l.masks.get(f)?.some(v => v))).length;
+}
+
+// Train on the strokes of the current frame (or all frames) and predict `frames`, with the Python server or the JS port.
+export async function segment(frames, { engine, n_estimators, max_depth, seed, allFrames = false }, onProgress) {
+  const st = S.stack, trainFrame = S.frame, masks = strokesOn(trainFrame), tf = trainingFrames(allFrames);
+  const where = tf.length > 1 ? `frames ${tf.map(f => f + 1).join(', ')}` : `frame ${tf[0] + 1}`;
   if (engine === 'python') {
     if (!st.serverId) throw new Error('The Python server has not got this stack (upload failed); use the browser engine');
     onProgress({ stage: 'Python: training RandomForestModel and predicting', done: 0, total: 1 });
-    const r = await api('/segment', { body: { stack: st.serverId, train_frame: trainFrame, frames, seed,
-      labels: S.labels.map((l, i) => ({ name: l.name, mask: packMask(masks[i]) })) } });
+    const r = await api('/segment', { body: { stack: st.serverId, train_frame: trainFrame, frames, seed, all_frames: allFrames,
+      labels: S.labels.map((l, i) => (allFrames
+        ? { name: l.name, masks: Object.fromEntries(tf.filter(f => l.masks.has(f)).map(f => [f, packMask(l.masks.get(f))])) }
+        : { name: l.name, mask: packMask(masks[i]) })) } });
     const pred = new Map();
     for (const f of frames) pred.set(f, b64bytes(r.pred[String(f)]));
     S.result = { pred, engine: 'python', trainFrame, importances: r.importances,
-      note: `Python RandomForestModel trained on ${r.n_train.toLocaleString()} stroke pixels of frame ${trainFrame + 1} (${r.train_s.toFixed(1)} s), predicted in ${r.predict_s.toFixed(1)} s` };
+      note: `Python RandomForestModel (seed ${seed ?? 'random'}) trained on ${r.n_train.toLocaleString()} stroke pixels of ${where} (${r.train_s.toFixed(1)} s), predicted in ${r.predict_s.toFixed(1)} s` };
   } else {
     const t0 = performance.now();
-    const tr = await call('train', { frame: trainFrame, masks, n_estimators, max_depth, seed }, onProgress);
+    const training = tf.map(f => ({ frame: f, masks: strokesOn(f) }));
+    const tr = await call('train', { training, n_estimators, max_depth, seed }, onProgress);
     const t1 = performance.now();
     const out = await call('predict', { frames }, onProgress);
     const pred = new Map();
     for (const f of frames) pred.set(f, out[f]);
     S.result = { pred, engine: 'js', trainFrame, forest: tr,
-      note: `Browser (JS port): ${tr.trees} trees, ${tr.nodes.toLocaleString()} nodes, trained on ${tr.n_train.toLocaleString()} stroke pixels of frame ${trainFrame + 1} in ${((t1 - t0) / 1000).toFixed(1)} s, predicted in ${((performance.now() - t1) / 1000).toFixed(1)} s` };
+      note: `Browser (JS port): ${tr.trees} trees, ${tr.nodes.toLocaleString()} nodes, trained on ${tr.n_train.toLocaleString()} stroke pixels of ${where} in ${((t1 - t0) / 1000).toFixed(1)} s, predicted in ${((performance.now() - t1) / 1000).toFixed(1)} s` };
   }
   emit();
 }

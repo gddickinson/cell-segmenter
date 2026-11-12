@@ -9,7 +9,8 @@ import uuid
 import warnings
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Optional
+from types import SimpleNamespace
+from typing import Dict, List, Optional
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -19,6 +20,7 @@ from pydantic import BaseModel
 
 from cell_segmenter import config
 from cell_segmenter.models.features import FeatureExtractor
+from cell_segmenter.utils.training_data import gather_training_data, n_classes_painted
 from cell_segmenter.web.demo import demo_data, demo_payload, demo_summary
 from cell_segmenter.web.segment_service import (b64, normalize_stack, quiet_logs, read_tiff_bytes, train_and_predict,
                                                 unpack_mask)
@@ -80,12 +82,14 @@ async def upload_stack(file: UploadFile = File(...)):
 
 class LabelIn(BaseModel):
     name: str
-    mask: str  # base64 np.packbits of the strokes on the training frame
+    mask: Optional[str] = None  # base64 np.packbits of the strokes on the training frame
+    masks: Dict[str, str] = {}  # frame -> packed strokes, for all_frames
 
 
 class SegmentIn(BaseModel):
     stack: str  # "demo" or an id from /api/stack
     train_frame: int = 0
+    all_frames: bool = False  # "Use training data from all frames"
     labels: List[LabelIn]
     frames: List[int]
     seed: Optional[int] = None  # None = a new forest every run (the page pre-fills config.RF_RANDOM_STATE)
@@ -100,18 +104,23 @@ def segment(body: SegmentIn):
     t, h, w = norm.shape
     if not 0 <= body.train_frame < t or any(not 0 <= f < t for f in body.frames):
         raise HTTPException(400, f"Frames must be between 0 and {t - 1}")
-    strokes = {lab.name: unpack_mask(lab.mask, (h, w)) for lab in body.labels}
-    classes = {i for i, m in enumerate(strokes.values()) if m.any()}
-    if len(classes) < 2:
-        raise HTTPException(400, "Paint strokes for at least two labels on the training frame")
+    masks = [{body.train_frame: lab.mask} if lab.mask and not body.all_frames else lab.masks for lab in body.labels]
+    labels = [SimpleNamespace(name=lab.name, masks={int(f): unpack_mask(s, (h, w)) for f, s in m.items()})
+              for lab, m in zip(body.labels, masks)]
+    if any(not 0 <= f < t for lab in labels for f in lab.masks):
+        raise HTTPException(400, f"Stroke frames must be between 0 and {t - 1}")
+    training = gather_training_data(labels, body.train_frame, body.all_frames, (h, w))
+    if n_classes_painted(training) < 2:
+        raise HTTPException(400, "Paint strokes for at least two labels on the training frame"
+                            + (" (or any frame)" if body.all_frames else ""))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # skimage: LBP on float images
-        r = train_and_predict(norm, body.train_frame, strokes, body.frames, seed=body.seed)
+        r = train_and_predict(norm, training, body.frames, seed=body.seed)
     return {
         "engine": "python", "frames": body.frames, "classes": [int(c) for c in r["model"].classifier.classes_],
         "pred": {str(f): b64(p, np.uint8) for f, p in r["preds"].items()},
         "importances": r["importances"], "train_s": r["train_s"], "predict_s": r["predict_s"],
-        "n_train": int(sum(int(m.sum()) for m in strokes.values())),
+        "n_train": int(r["model"].n_training_samples), "train_frames": [f for f, _ in training],
     }
 
 

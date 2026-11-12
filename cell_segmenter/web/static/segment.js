@@ -1,7 +1,7 @@
 // Segment page: the desktop workflow in the browser. Load a TIFF stack (or the demo), add labels, paint strokes, train
 // the random forest on the strokes of the current frame, segment this frame or all frames, inspect and export.
 import { $, app, esc, isStatic, onLeave, route } from './core.js';
-import { getInfo, loadDemo, loadFile, PALETTE, S, segment } from './state.js';
+import { classesPainted, getInfo, loadDemo, loadFile, PALETTE, S, segment, trainingFrames } from './state.js';
 import { attachBrush, compose, countStrokes, undo } from './viewer.js';
 import { renderResults } from './results.js';
 
@@ -46,6 +46,7 @@ route('segment', async () => {
         </div>
         <label for="seed">Random seed (desktop default ${d.random_state ?? 'none'}; blank = a new forest each run)</label>
         <input type="number" id="seed" min="0" step="1" placeholder="random" value="${d.random_state ?? ''}">
+        <label class="chk"><input type="checkbox" id="allframes"> Use training data from all frames</label>
         <button id="segone">Segment this frame</button><button id="segall" class="alt">Segment all frames</button>
         <div class="progress" aria-hidden="true"><i id="bar"></i></div>
         <p class="status" id="status" role="status" aria-live="polite"></p>
@@ -120,10 +121,13 @@ function wire() {
 
 async function run(frames) {
   const engine = $('#engine').value, seedTxt = $('#seed').value.trim();
-  const opts = { engine, n_estimators: Math.max(1, +$('#trees').value || 100), max_depth: Math.max(1, +$('#depth').value || 10),
+  const allFrames = $('#allframes').checked;
+  const opts = { engine, allFrames, n_estimators: Math.max(1, +$('#trees').value || 100), max_depth: Math.max(1, +$('#depth').value || 10),
     seed: seedTxt === '' ? (engine === 'js' ? (Math.random() * 2 ** 31) >>> 0 : null) : +seedTxt };
-  const counts = S.labels.map(l => countStrokes(l, S.frame)).filter(n => n > 0);
-  if (counts.length < 2) { setStatus(`Paint strokes for at least two labels on frame ${S.frame + 1} first`); return; }
+  if (classesPainted(trainingFrames(allFrames)) < 2) {
+    setStatus(`Paint strokes for at least two labels ${allFrames ? 'on any frame' : `on frame ${S.frame + 1}`} first`);
+    return;
+  }
   for (const b of ['#segone', '#segall']) $(b).disabled = true;
   try {
     await segment(frames, opts, p => setStatus(`${p.stage} (${p.done}/${p.total})`, true, p.total ? p.done / p.total : null));
