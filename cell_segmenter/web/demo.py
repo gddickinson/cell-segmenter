@@ -58,5 +58,5 @@ def demo_payload() -> dict:
         truth=[pack_mask(g) for g in d["gt"]],
         python_pred=b64(np.stack([d["preds"][f] for f in sorted(d["preds"])]), np.uint8),
         importances=d["importances"],
-        forest=export_forest(d["model"].classifier),
+        forest=export_forest(d["model"].classifier, d["model"].feature_indices),
     )

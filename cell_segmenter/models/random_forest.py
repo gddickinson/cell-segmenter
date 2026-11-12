@@ -53,6 +53,7 @@ class RandomForestModel(SegmentationModel):
         try:
             logger.info("Starting Random Forest training")
             self.validate_image(image)
+            self.select_features(kwargs.get('selected_features'))
 
             # Prepare training data
             X, y = self.prepare_training_data(image, labels_dict)
@@ -74,6 +75,7 @@ class RandomForestModel(SegmentationModel):
             logger.info(f"Starting Random Forest training on {len(images)} frames")
             for image in images:
                 self.validate_image(image)
+            self.select_features(kwargs.get('selected_features'))
             X, y = self.prepare_training_data_frames(images, labels_dicts)
             self._fit(X, y)
         except Exception as e:
@@ -119,7 +121,7 @@ class RandomForestModel(SegmentationModel):
                 raise RuntimeError("Model must be trained before prediction")
 
             # Extract features
-            features = self.feature_extractor.extract_features(image)
+            features = self.extract_selected_features(image)
             features_flat = features.reshape(features.shape[0], -1).T
 
             # Predict
@@ -148,6 +150,7 @@ class RandomForestModel(SegmentationModel):
                 'n_estimators': self.n_estimators,
                 'max_depth': self.max_depth,
                 'random_state': self.random_state,
+                'feature_indices': self.feature_indices,
                 'is_trained': self.is_trained
             }
             joblib.dump(model_data, path)
@@ -172,6 +175,7 @@ class RandomForestModel(SegmentationModel):
             self.n_estimators = model_data['n_estimators']
             self.max_depth = model_data['max_depth']
             self.random_state = model_data.get('random_state', self.classifier.random_state)
+            self.feature_indices = model_data.get('feature_indices')
             self.is_trained = model_data['is_trained']
 
             logger.info("Model loaded successfully")

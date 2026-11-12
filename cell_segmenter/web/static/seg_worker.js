@@ -1,7 +1,8 @@
 // Web Worker: feature extraction, forest training and prediction off the main thread (the desktop app's rule: never
 // compute on the UI thread). Messages { id, type, ... } -> replies { id, ok, result } / { id, error } / { id, progress }.
 //   load    { frames: [TypedArray raw], H, W }       normalise each frame as normalize_stack (per-frame min-max)
-//   train   { training: [{ frame, masks: [Uint8Array per label] }], n_estimators, max_depth, seed }
+//   train   { training: [{ frame, masks: [Uint8Array per label] }], indices (feature rows, null = all), n_estimators,
+//             max_depth, seed }
 //           -> { n_train, classes, trees, nodes }  (several frames = "use training data from all frames")
 //   forest  { forest: exported JSON }                 use a forest trained by Python
 //   predict { frames: [i] }                           -> { [i]: Uint8Array label index per pixel }
@@ -21,15 +22,17 @@ function features(f, report) {
   return F;
 }
 
+const pick = (F, indices) => (indices ? indices.map(k => F[k]) : F);
+
 const handlers = {
   load({ frames, H: h, W: w }) {
     H = h; W = w; norm = frames.map(fr => normalize(fr)); cache.clear(); forest = null;
     return { frames: norm.length };
   },
-  train({ training, n_estimators, max_depth, seed }, report) {
+  train({ training, indices = null, n_estimators, max_depth, seed }, report) {
     const X = [], y = [];
     for (const { frame, masks } of training) {
-      const F = features(frame, report);
+      const F = pick(features(frame, report), indices);
       if (!X.length) F.forEach(() => X.push([]));
       masks.forEach((m, label) => {
         for (let i = 0; i < H * W; i++) if (m[i]) { y.push(label); F.forEach((f, k) => X[k].push(f[i])); }
@@ -38,6 +41,7 @@ const handlers = {
     if (new Set(y).size < 2) throw new Error('Paint strokes for at least two labels first');
     forest = trainForest(X.map(a => Float32Array.from(a)), y, { n_estimators, max_depth, seed,
       onTree: (t, n) => report({ stage: 'training trees', done: t, total: n }) });
+    forest.feature_indices = indices;
     return { n_train: y.length, classes: forest.classes, trees: forest.trees.length,
       nodes: forest.trees.reduce((s, t) => s + t.left.length, 0) };
   },
@@ -47,7 +51,7 @@ const handlers = {
     const out = {};
     frames.forEach((f, i) => {
       report({ stage: `frame ${f + 1}: features`, done: i, total: frames.length });
-      out[f] = predictForest(forest, features(f, () => {}), H * W);
+      out[f] = predictForest(forest, pick(features(f, () => {}), forest.feature_indices), H * W);
     });
     return out;
   },

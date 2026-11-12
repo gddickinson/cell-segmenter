@@ -50,3 +50,4 @@ ol.steps li { margin:6px 0; }
   .bars { grid-template-columns:minmax(0,1fr) 70px 44px; }
   .kv { grid-template-columns:1fr; } .kv dd { margin-bottom:6px; }
 }
+.feats summary { cursor:pointer; color:var(--mute); font-size:13px; margin:10px 0 4px; }

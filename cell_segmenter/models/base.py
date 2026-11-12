@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from typing import Dict, Tuple, Optional
 from ..utils.logger import setup_logger
-from .features import FeatureExtractor
+from .features import FeatureExtractor, feature_indices
 
 logger = setup_logger(__name__)
 
@@ -13,9 +13,20 @@ class SegmentationModel(ABC):
     def __init__(self):
         """Initialize base model components."""
         self.feature_extractor = FeatureExtractor()
+        self.feature_indices = None  # rows of extract_features() used by the model; None = all 36
         self.is_trained = False
         logger.debug(f"Initialized {self.__class__.__name__}")
     
+    def select_features(self, selected) -> None:
+        """Use only the selected feature groups (training panel names, see features.FEATURE_GROUPS) from now on."""
+        self.feature_indices = feature_indices(selected)
+        logger.debug(f"Feature rows used: {'all' if self.feature_indices is None else self.feature_indices}")
+
+    def extract_selected_features(self, image: np.ndarray) -> np.ndarray:
+        """extract_features(image) restricted to the selected rows."""
+        features = self.feature_extractor.extract_features(image)
+        return features if self.feature_indices is None else features[self.feature_indices]
+
     def prepare_training_data(self, 
                             image: np.ndarray,
                             labels_dict: Dict[str, np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
@@ -30,7 +41,7 @@ class SegmentationModel(ABC):
         """
         try:
             logger.debug("Preparing training data")
-            features = self.feature_extractor.extract_features(image)
+            features = self.extract_selected_features(image)
             
             X = []
             y = []

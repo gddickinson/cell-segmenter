@@ -54,7 +54,8 @@ async function show() {
 function importances() {
   const imp = S.result?.importances;
   if (!imp) { $('#imp').innerHTML = '<p class="small mute">Shown for forests trained by the Python code (the demo forest, or the Python engine of the local app). The JS port does not compute them.</p>'; return; }
-  const max = Math.max(...imp), order = imp.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]);
+  const rows = S.result.featureIndices;  // columns of a forest trained on a feature subset -> feature rows
+  const max = Math.max(...imp), order = imp.map((v, i) => [v, rows ? rows[i] : i]).sort((a, b) => b[0] - a[0]);
   $('#imp').innerHTML = `<p class="small mute">Mean decrease in Gini impurity (scikit-learn), from: ${esc(S.result.note)}.</p>
     <div class="bars">${order.map(([v, i]) => `<button data-k="${i}">${i}. ${esc(FEATURE_NAMES[i])}</button>
       <span class="bar" style="width:${(100 * v / max).toFixed(1)}%"></span><span class="mono">${(100 * v).toFixed(1)}%</span>`).join('')}</div>`;

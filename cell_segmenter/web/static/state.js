@@ -4,6 +4,7 @@
 import { api, isStatic } from './core.js';
 import { call } from './worker_client.js';
 import { readTiff } from './tiff.js';
+import { featureIndices } from './features.js';
 
 export const PALETTE = ['#3d8bff', '#ffb02e', '#ff5fa2', '#3de0c8', '#b57bff', '#9be564', '#ff7a45'];
 
@@ -98,24 +99,26 @@ export function classesPainted(fs) {
 }
 
 // Train on the strokes of the current frame (or all frames) and predict `frames`, with the Python server or the JS port.
-export async function segment(frames, { engine, n_estimators, max_depth, seed, allFrames = false }, onProgress) {
+export async function segment(frames, { engine, n_estimators, max_depth, seed, allFrames = false, features = null }, onProgress) {
   const st = S.stack, trainFrame = S.frame, masks = strokesOn(trainFrame), tf = trainingFrames(allFrames);
-  const where = tf.length > 1 ? `frames ${tf.map(f => f + 1).join(', ')}` : `frame ${tf[0] + 1}`;
+  const fi = featureIndices(features);
+  const where = (tf.length > 1 ? `frames ${tf.map(f => f + 1).join(', ')}` : `frame ${tf[0] + 1}`)
+    + (fi ? ` using ${fi.length} of 36 feature maps` : '');
   if (engine === 'python') {
     if (!st.serverId) throw new Error('The Python server has not got this stack (upload failed); use the browser engine');
     onProgress({ stage: 'Python: training RandomForestModel and predicting', done: 0, total: 1 });
-    const r = await api('/segment', { body: { stack: st.serverId, train_frame: trainFrame, frames, seed, all_frames: allFrames,
+    const r = await api('/segment', { body: { stack: st.serverId, train_frame: trainFrame, frames, seed, all_frames: allFrames, features,
       labels: S.labels.map((l, i) => (allFrames
         ? { name: l.name, masks: Object.fromEntries(tf.filter(f => l.masks.has(f)).map(f => [f, packMask(l.masks.get(f))])) }
         : { name: l.name, mask: packMask(masks[i]) })) } });
     const pred = new Map();
     for (const f of frames) pred.set(f, b64bytes(r.pred[String(f)]));
-    S.result = { pred, engine: 'python', trainFrame, importances: r.importances,
+    S.result = { pred, engine: 'python', trainFrame, importances: r.importances, featureIndices: r.feature_indices,
       note: `Python RandomForestModel (seed ${seed ?? 'random'}) trained on ${r.n_train.toLocaleString()} stroke pixels of ${where} (${r.train_s.toFixed(1)} s), predicted in ${r.predict_s.toFixed(1)} s` };
   } else {
     const t0 = performance.now();
     const training = tf.map(f => ({ frame: f, masks: strokesOn(f) }));
-    const tr = await call('train', { training, n_estimators, max_depth, seed }, onProgress);
+    const tr = await call('train', { training, indices: fi, n_estimators, max_depth, seed }, onProgress);
     const t1 = performance.now();
     const out = await call('predict', { frames }, onProgress);
     const pred = new Map();

@@ -7,6 +7,35 @@ from cell_segmenter.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# Feature groups as named in the training panel / feature viewer -> rows of extract_features() (36 maps, in order).
+FEATURE_GROUPS = {
+    'Original Intensity': [0],
+    'Gaussian Features': list(range(1, 10)),     # Gaussian, gradient magnitude, Laplacian at sigma 1, 2, 4
+    'Edge Features': list(range(10, 14)),         # Sobel, Scharr, Roberts, Prewitt
+    'LBP Features': [14],
+    'Hessian Features': list(range(15, 21)),      # determinant and trace at sigma 1, 2, 4
+    'Gabor Features': list(range(21, 33)),        # 3 frequencies x 4 orientations
+    'Entropy Features': [33],
+    'Structure Tensor': [34, 35],                 # orientation, coherency
+}
+
+
+def feature_indices(selected) -> Optional[List[int]]:
+    """Rows of extract_features() for the selected groups (names or a {name: bool} dict); None = all features.
+
+    An empty or missing selection means all features (the training panel lists nothing until the Feature Viewer has
+    been opened). Unknown names raise ValueError.
+    """
+    if not selected:
+        return None
+    names = [k for k, v in selected.items() if v] if isinstance(selected, dict) else list(selected)
+    unknown = [n for n in names if n not in FEATURE_GROUPS]
+    if unknown:
+        raise ValueError(f"Unknown feature group(s): {unknown}; known: {list(FEATURE_GROUPS)}")
+    idx = sorted({i for n in names for i in FEATURE_GROUPS[n]})
+    return None if len(idx) == 36 else idx
+
+
 class FeatureExtractor:
     """Extract features for cell segmentation with enhanced capabilities."""
 

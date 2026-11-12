@@ -103,8 +103,8 @@ class CNNModel(SegmentationModel):
             tuple: (input_tensor, target_tensor)
         """
         try:
-            # Extract features
-            features = self.feature_extractor.extract_features(image)
+            # Extract features (the selected groups only)
+            features = self.extract_selected_features(image)
             
             # Prepare target
             n_classes = len(labels_dict)
@@ -137,11 +137,13 @@ class CNNModel(SegmentationModel):
             logger.info("Starting CNN training")
             self.validate_image(image)
             
-            # Initialize model if needed
-            if self.model is None:
-                n_features = len(self.feature_extractor.extract_features(image))
+            # Initialize model if needed (again if the feature selection changed the number of input channels)
+            self.select_features(kwargs.get('selected_features'))
+            n_features = len(self.extract_selected_features(image))
+            if self.model is None or getattr(self, '_n_input', None) != n_features:
                 n_classes = len(labels_dict)
                 self.model = CNNArchitecture(n_features, n_classes).to(self.device)
+                self._n_input = n_features
                 logger.debug(f"Initialized CNN architecture with {n_features} input channels")
             
             # Prepare data
@@ -193,7 +195,7 @@ class CNNModel(SegmentationModel):
                 raise RuntimeError("Model must be trained before prediction")
             
             # Extract features and prepare input
-            features = self.feature_extractor.extract_features(image)
+            features = self.extract_selected_features(image)
             X = torch.FloatTensor(features).unsqueeze(0).to(self.device)
             
             # Make prediction

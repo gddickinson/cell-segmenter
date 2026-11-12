@@ -116,7 +116,7 @@ function growTree(X, y, w, idx, K, mtry, maxDepth, rnd) {
 
 // Plain-array forest from the JSON exported by the Python side (cell_segmenter/web/segment_service.py).
 export function forestFromJson(j) {
-  return { classes: j.classes, n_features: j.n_features, trees: j.trees.map(t => ({
+  return { classes: j.classes, n_features: j.n_features, feature_indices: j.feature_indices ?? null, trees: j.trees.map(t => ({
     feature: Int32Array.from(t.feature), threshold: Float64Array.from(t.threshold), left: Int32Array.from(t.left),
     right: Int32Array.from(t.right), value: Float64Array.from(t.value) })) };
 }

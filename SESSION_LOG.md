@@ -37,6 +37,9 @@
   without LOG_FILE (the app then failed to start); `pip install -e .` failed (non-existent build backend) and the
   `cell-segmenter` command pointed at a missing `main`; the synthetic generator could loop forever.
 
+- The training panel's feature selection now reaches the models (`FEATURE_GROUPS`, `select_features`; only the ticked
+  groups' maps are used for training and prediction, saved with the model); the web page has the same feature-group
+  checkboxes (JS and Python engines). GUI tests now run Qt in subprocesses (PySide6 in the shared venv broke them).
+
 **Open / for George**
-- The training panel's feature selection is still ignored by the models (they always use all 36 features).
 - The CNN still trains on one frame (all-frames training is Random Forest only); the CNN was not run (no PyTorch here).

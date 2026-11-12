@@ -27,6 +27,8 @@ route('method', async () => {
     Hessian determinant and trace at σ = ${f.hessian_sigmas.join(', ')}, Gabor filters at frequencies
     ${f.gabor_frequencies.join(', ')} and orientations ${f.gabor_orientations.join('°, ')}°, local entropy in a
     ${f.entropy_radius}×${f.entropy_radius} window, and structure-tensor orientation and coherency (σ = ${f.structure_sigma}).</p>
+  <p>The training panel (and the “Features” list on the Segment page) chooses which of the eight feature groups the
+    model uses; only those maps go into training and prediction.</p>
   <details><summary>All ${FEATURE_NAMES.length} features in order</summary><ol start="0">${FEATURE_NAMES.map(n => `<li>${esc(n)}</li>`).join('')}</ol></details>
   <h2>Classifier (<code>models/random_forest.py</code>)</h2>
   <p>scikit-learn <code>RandomForestClassifier</code> with ${d.n_estimators} trees and maximum depth ${d.max_depth}

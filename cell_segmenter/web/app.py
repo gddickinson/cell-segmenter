@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from cell_segmenter import config
-from cell_segmenter.models.features import FeatureExtractor
+from cell_segmenter.models.features import FEATURE_GROUPS, FeatureExtractor, feature_indices
 from cell_segmenter.utils.training_data import gather_training_data, n_classes_painted
 from cell_segmenter.web.demo import demo_data, demo_payload, demo_summary
 from cell_segmenter.web.segment_service import (b64, normalize_stack, quiet_logs, read_tiff_bytes, train_and_predict,
@@ -51,7 +51,8 @@ def info():
                      "brush_size": config.DEFAULT_BRUSH_SIZE, "overlay_opacity": config.OVERLAY_OPACITY},
         "features": {"sigmas": fe.sigmas, "hessian_sigmas": fe.hessian_sigmas,
                      "gabor_frequencies": fe.gabor_frequencies, "gabor_orientations": fe.gabor_orientations,
-                     "entropy_radius": fe.entropy_radius, "structure_sigma": fe.structure_sigma, "count": 36},
+                     "entropy_radius": fe.entropy_radius, "structure_sigma": fe.structure_sigma, "count": 36,
+                     "groups": FEATURE_GROUPS},
         "demo": demo_summary(),
     }
 
@@ -90,6 +91,7 @@ class SegmentIn(BaseModel):
     stack: str  # "demo" or an id from /api/stack
     train_frame: int = 0
     all_frames: bool = False  # "Use training data from all frames"
+    features: Optional[List[str]] = None  # feature groups (models.features.FEATURE_GROUPS); None = all
     labels: List[LabelIn]
     frames: List[int]
     seed: Optional[int] = None  # None = a new forest every run (the page pre-fills config.RF_RANDOM_STATE)
@@ -115,12 +117,16 @@ def segment(body: SegmentIn):
                             + (" (or any frame)" if body.all_frames else ""))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # skimage: LBP on float images
-        r = train_and_predict(norm, training, body.frames, seed=body.seed)
+        try:
+            feature_indices(body.features)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        r = train_and_predict(norm, training, body.frames, seed=body.seed, features=body.features)
     return {
         "engine": "python", "frames": body.frames, "classes": [int(c) for c in r["model"].classifier.classes_],
         "pred": {str(f): b64(p, np.uint8) for f, p in r["preds"].items()},
         "importances": r["importances"], "train_s": r["train_s"], "predict_s": r["predict_s"],
-        "n_train": int(r["model"].n_training_samples), "train_frames": [f for f, _ in training],
+        "n_train": int(r["model"].n_training_samples), "feature_indices": r["model"].feature_indices, "train_frames": [f for f, _ in training],
     }
 
 

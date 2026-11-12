@@ -2,12 +2,16 @@
 // fixture images (tests/fixtures/features_case.json, written by scripts/make_web_fixtures.py).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { extractFeatures, FEATURE_NAMES } from './features.js';
+import { extractFeatures, FEATURE_GROUPS, FEATURE_NAMES, featureIndices } from './features.js';
 
 const fx = JSON.parse(readFileSync(new URL('../../../tests/fixtures/features_case.json', import.meta.url)));
 const f64 = s => { const b = Buffer.from(s, 'base64'); return new Float64Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.length)); };
 
 assert.equal(FEATURE_NAMES.length, fx.n_features);
+assert.deepEqual(FEATURE_GROUPS, fx.groups);
+assert.deepEqual(featureIndices(['LBP Features', 'Gabor Features']), [14, ...fx.groups['Gabor Features']]);
+assert.equal(featureIndices(Object.keys(fx.groups)), null);
+console.log('ok feature groups match models/features.py::FEATURE_GROUPS');
 for (const c of fx.cases) {
   const [H, W] = c.shape, img = f64(c.image), want = f64(c.features);
   const got = extractFeatures(img, H, W);

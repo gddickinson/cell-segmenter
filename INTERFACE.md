@@ -25,10 +25,10 @@
 
 ### cell_segmenter/models/
 - `__init__.py` -- Re-exports SegmentationModel, RandomForestModel, CNNModel, FeatureExtractor (CNN lazily: torch only needed for the CNN)
-- `base.py` -- `SegmentationModel`: abstract base class; `prepare_training_data`, `prepare_training_data_frames`
+- `base.py` -- `SegmentationModel`: abstract base class; `select_features`, `extract_selected_features`, `prepare_training_data`, `prepare_training_data_frames`
 - `random_forest.py` -- `RandomForestModel(SegmentationModel)`: scikit-learn Random Forest; defaults read from config at construction (trees, depth, seed); `train`, `train_frames`, `predict`, save/load
 - `cnn.py` -- `CNNModel(SegmentationModel)`: PyTorch CNN classifier
-- `features.py` -- `FeatureExtractor`: multi-scale feature extraction (Gaussian, edge, LBP, Hessian, Gabor)
+- `features.py` -- `FeatureExtractor`: multi-scale feature extraction (36 maps); `FEATURE_GROUPS` (training-panel names -> rows), `feature_indices(selected)`
 
 ### cell_segmenter/data/
 - `__init__.py` -- Re-exports Label
@@ -70,7 +70,7 @@
 ## tests/
 - `test_models.py` -- Tests for FeatureExtractor, Label, and module imports
 - `test_imports_without_torch.py`, `test_brush.py`, `test_normalize_stack.py`, `test_config_io.py`, `test_random_forest_seed.py`,
-  `test_training_data.py`, `test_packaging.py` -- regression tests for the 2026-11 fixes
+  `test_training_data.py`, `test_packaging.py`, `test_feature_selection.py` -- regression tests for the 2026-11 fixes
 - `test_gui_offscreen.py` (+ `gui_scripts/gui_smoke.py`) -- MainWindow, feature viewer, all-frames training offscreen (PyTorch stubbed)
 - `test_web.py` -- API endpoints, static build, node engine tests
 - `test_web_engine.py` -- fixtures current, JS TIFF writer readable by tifffile, synthetic stack, object stats

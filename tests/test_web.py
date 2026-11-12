@@ -133,3 +133,14 @@ def test_segment_all_frames_gathers_strokes():
     j = client.post("/api/segment", json={**body, "all_frames": True}).json()
     assert j["train_frames"] == [0, 1] and j["classes"] == [0, 1]
     assert j["n_train"] == int(strokes["Background"].sum() + strokes["Cell"].sum())
+
+
+def test_segment_with_feature_selection():
+    from cell_segmenter.models.features import FEATURE_GROUPS
+    assert client.get("/api/info").json()["features"]["groups"] == FEATURE_GROUPS
+    j = client.get("/api/demo").json()
+    labels = [{"name": l["name"], "mask": l["mask"]} for l in j["labels"]]
+    body = {"stack": "demo", "frames": [0], "seed": 0, "labels": labels, "features": ["Original Intensity", "Gabor Features"]}
+    r = client.post("/api/segment", json=body).json()
+    assert r["feature_indices"] == [0] + list(range(21, 33)) and len(r["importances"]) == 13
+    assert client.post("/api/segment", json={**body, "features": ["Nope"]}).status_code == 400

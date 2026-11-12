@@ -41,8 +41,10 @@ def unpack_mask(s: str, shape) -> np.ndarray:
     return bits.astype(bool).reshape(shape)
 
 
-def export_forest(classifier) -> dict:
-    """sklearn RandomForestClassifier -> plain JSON (per-node feature, threshold, children, class fractions)."""
+def export_forest(classifier, feature_indices=None) -> dict:
+    """sklearn RandomForestClassifier -> plain JSON (per-node feature, threshold, children, class fractions).
+
+    feature_indices: the rows of extract_features() the forest's columns are (None = all 36)."""
     trees = []
     for est in classifier.estimators_:
         t = est.tree_
@@ -51,7 +53,8 @@ def export_forest(classifier) -> dict:
         trees.append(dict(feature=t.feature.tolist(), threshold=[float(x) for x in t.threshold],
                           left=t.children_left.tolist(), right=t.children_right.tolist(),
                           value=[float(x) for x in v.ravel()]))
-    return dict(classes=[int(c) for c in classifier.classes_], n_features=int(classifier.n_features_in_), trees=trees)
+    return dict(classes=[int(c) for c in classifier.classes_], n_features=int(classifier.n_features_in_), trees=trees,
+                feature_indices=None if feature_indices is None else [int(i) for i in feature_indices])
 
 
 def read_tiff_bytes(data: bytes) -> np.ndarray:
@@ -62,7 +65,7 @@ def read_tiff_bytes(data: bytes) -> np.ndarray:
 
 def train_and_predict(norm: np.ndarray, training: List[Tuple[int, Dict[str, np.ndarray]]], frames: List[int],
                       seed="config", n_estimators: Optional[int] = None,
-                      max_depth: Optional[int] = None) -> dict:
+                      max_depth: Optional[int] = None, features: Optional[List[str]] = None) -> dict:
     """Train RandomForestModel on painted strokes and predict the given frames.
 
     training is [(frame, {label name: bool mask})] (utils.training_data.gather_training_data): one frame trains with
@@ -70,6 +73,7 @@ def train_and_predict(norm: np.ndarray, training: List[Tuple[int, Dict[str, np.n
     order in every dict; the predicted value of a pixel is the index of its label,
     as in the GUI (which shows 'segmentation > 0', i.e. every label except the first, as the result mask).
     seed: "config" (config.RF_RANDOM_STATE, the desktop default), an int, or None for a new forest every run.
+    features: feature groups to use (training-panel names, models.features.FEATURE_GROUPS); None = all.
     """
     kw = {k: v for k, v in dict(n_estimators=n_estimators, max_depth=max_depth).items() if v is not None}
     if seed != "config":
@@ -77,9 +81,9 @@ def train_and_predict(norm: np.ndarray, training: List[Tuple[int, Dict[str, np.n
     model = RandomForestModel(**kw)
     t0 = time.perf_counter()
     if len(training) == 1:
-        model.train(norm[training[0][0]], training[0][1])
+        model.train(norm[training[0][0]], training[0][1], selected_features=features)
     else:
-        model.train_frames([norm[f] for f, _ in training], [d for _, d in training])
+        model.train_frames([norm[f] for f, _ in training], [d for _, d in training], selected_features=features)
     t1 = time.perf_counter()
     preds = {f: model.predict(norm[f]).astype(np.uint8) for f in frames}
     t2 = time.perf_counter()

@@ -102,6 +102,8 @@ python main.py
   - Multi-scale Gaussian derivatives
   - Edge detection features (Sobel, Scharr, Roberts, Prewitt)
   - Texture features using Local Binary Patterns
+  - The training panel (filled after opening Tools > Feature Viewer) chooses which feature groups the model uses;
+    all 36 maps are used until then
 
 ## Technical Details
 

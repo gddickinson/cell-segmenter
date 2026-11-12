@@ -74,9 +74,12 @@ if mode == "viewer":
     fv.update_feature_extractor()
     w.training_panel.update_feature_list()
     out["panel_features"] = sorted(w.training_panel.get_selected_features())
+    for name, cb in w.training_panel.feature_items.items():   # keep two groups ticked: 1 + 12 feature maps
+        cb.setChecked(name in ("Original Intensity", "Gabor Features"))
 w.current_frame = 1
 w.train_model()
 out["train1_classes"] = [int(c) for c in w.current_model.classifier.classes_]
+out["n_features_in"] = int(w.current_model.classifier.n_features_in_)
 w.segment_current_frame()
 w.segment_all_frames()
 out["n_labels_after_segment"] = len(w.labels)

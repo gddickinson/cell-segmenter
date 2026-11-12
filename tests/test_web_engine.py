@@ -31,6 +31,7 @@ def fresh():
 
 def test_features_fixture_current(fresh):
     old = json.loads((FIX / "features_case.json").read_text())
+    assert old["groups"] == json.loads(json.dumps(fresh["features_case.json"]["groups"]))
     for a, b in zip(old["cases"], fresh["features_case.json"]["cases"]):
         assert a["shape"] == b["shape"]
         np.testing.assert_allclose(_f64(a["image"]), _f64(b["image"]), rtol=1e-9, atol=1e-12)

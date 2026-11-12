@@ -12,6 +12,25 @@ export const PARAMS = {
   gabor_orientations: [0, 45, 90, 135], entropy_radius: 5, structure_sigma: 1,
 };
 
+// Feature groups of the training panel (models/features.py::FEATURE_GROUPS) -> rows of extractFeatures().
+export const FEATURE_GROUPS = {
+  'Original Intensity': [0],
+  'Gaussian Features': [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  'Edge Features': [10, 11, 12, 13],
+  'LBP Features': [14],
+  'Hessian Features': [15, 16, 17, 18, 19, 20],
+  'Gabor Features': [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+  'Entropy Features': [33],
+  'Structure Tensor': [34, 35],
+};
+
+// Rows for the selected group names; null = all (as feature_indices() in Python).
+export function featureIndices(names) {
+  if (!names || !names.length) return null;
+  const idx = [...new Set(names.flatMap(n => { if (!FEATURE_GROUPS[n]) throw new Error(`Unknown feature group ${n}`); return FEATURE_GROUPS[n]; }))].sort((a, b) => a - b);
+  return idx.length === 36 ? null : idx;
+}
+
 export const FEATURE_NAMES = (() => {
   const n = ['Intensity (normalised)'];
   for (const s of PARAMS.sigmas) n.push(`Gaussian σ=${s}`, `Gradient magnitude σ=${s}`, `Laplacian σ=${s}`);

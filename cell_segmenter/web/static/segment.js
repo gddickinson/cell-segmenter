@@ -46,6 +46,9 @@ route('segment', async () => {
         </div>
         <label for="seed">Random seed (desktop default ${d.random_state ?? 'none'}; blank = a new forest each run)</label>
         <input type="number" id="seed" min="0" step="1" placeholder="random" value="${d.random_state ?? ''}">
+        <details class="feats"><summary>Features: <span id="featcount">all 36</span></summary>
+          ${Object.entries(info.features.groups).map(([g, rows]) => `<label class="chk"><input type="checkbox" data-group="${esc(g)}" checked> ${esc(g)} (${rows.length})</label>`).join('')}
+        </details>
         <label class="chk"><input type="checkbox" id="allframes"> Use training data from all frames</label>
         <button id="segone">Segment this frame</button><button id="segall" class="alt">Segment all frames</button>
         <div class="progress" aria-hidden="true"><i id="bar"></i></div>
@@ -115,6 +118,10 @@ function wire() {
   $('#opacity').oninput = e => { S.opacity = +e.target.value; refresh(); };
   for (const k of Object.keys(show)) { const c = $(`#sh-${k}`); c.checked = show[k]; c.onchange = () => { show[k] = c.checked; draw(); }; }
   attachBrush($('#view'), () => mode, draw);
+  $('.feats').onchange = () => {
+    const rows = [...document.querySelectorAll('[data-group]')].filter(c => c.checked).reduce((s, c) => s + S.info.features.groups[c.dataset.group].length, 0);
+    $('#featcount').textContent = rows === 36 ? 'all 36' : `${rows} of 36`;
+  };
   $('#segone').onclick = () => run([S.frame]);
   $('#segall').onclick = () => run(S.stack.frames.map((_, i) => i));
 }
@@ -122,7 +129,10 @@ function wire() {
 async function run(frames) {
   const engine = $('#engine').value, seedTxt = $('#seed').value.trim();
   const allFrames = $('#allframes').checked;
-  const opts = { engine, allFrames, n_estimators: Math.max(1, +$('#trees').value || 100), max_depth: Math.max(1, +$('#depth').value || 10),
+  const groups = [...document.querySelectorAll('[data-group]')], picked = groups.filter(c => c.checked).map(c => c.dataset.group);
+  if (!picked.length) { setStatus('Select at least one feature group'); return; }
+  const features = picked.length === groups.length ? null : picked;
+  const opts = { engine, allFrames, features, n_estimators: Math.max(1, +$('#trees').value || 100), max_depth: Math.max(1, +$('#depth').value || 10),
     seed: seedTxt === '' ? (engine === 'js' ? (Math.random() * 2 ** 31) >>> 0 : null) : +seedTxt };
   if (classesPainted(trainingFrames(allFrames)) < 2) {
     setStatus(`Paint strokes for at least two labels ${allFrames ? 'on any frame' : `on frame ${S.frame + 1}`} first`);

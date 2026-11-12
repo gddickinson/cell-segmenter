@@ -39,7 +39,8 @@ def features_case():
         for name, img in (("demo_crop", crop), ("tiny_random", tiny)):
             f = FeatureExtractor().extract_features(img)
             cases.append(dict(name=name, shape=list(img.shape), image=b64(img, np.float64), features=b64(f, np.float64)))
-    return dict(n_features=36, cases=cases)
+    from cell_segmenter.models.features import FEATURE_GROUPS
+    return dict(n_features=36, cases=cases, groups=FEATURE_GROUPS)
 
 
 def forest_case():
