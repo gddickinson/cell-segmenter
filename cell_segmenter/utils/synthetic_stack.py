@@ -19,13 +19,17 @@ DEFAULTS = dict(n_frames=6, shape=(160, 160), n_cells=9, seed=7)
 def _cells(rng, n_cells, shape):
     h, w = shape
     cells = []
-    while len(cells) < n_cells:
+    for _ in range(200000):
+        if len(cells) == n_cells:
+            break
         a, b = rng.uniform(9, 16), rng.uniform(7, 12)
         cy, cx = rng.uniform(a + 6, h - a - 6), rng.uniform(a + 6, w - a - 6)
         if all(np.hypot(cy - c["cy"], cx - c["cx"]) > a + c["a"] + 4 for c in cells):
             granules = [(rng.uniform(-0.6, 0.6), rng.uniform(-0.6, 0.6), rng.uniform(1.0, 2.2)) for _ in range(5)]
             cells.append(dict(cy=cy, cx=cx, a=a, b=b, theta=rng.uniform(0, np.pi),
                               vy=rng.normal(0, 0.6), vx=rng.normal(0, 0.6), granules=granules))
+    if len(cells) < n_cells:
+        raise ValueError(f"Could not place {n_cells} non-overlapping cells in a {h}x{w} image; use a larger shape")
     return cells
 
 

@@ -73,9 +73,9 @@ def test_js_tiff_writer_read_by_tifffile(tmp_path):
 
 def test_synthetic_stack_is_seeded():
     from cell_segmenter.utils.synthetic_stack import make_synthetic_stack
-    a, ga, sa = make_synthetic_stack(n_frames=2, shape=(50, 60), n_cells=2, seed=3)
-    b, gb, sb = make_synthetic_stack(n_frames=2, shape=(50, 60), n_cells=2, seed=3)
-    assert a.dtype == np.uint16 and a.shape == (2, 50, 60) and np.array_equal(a, b) and np.array_equal(ga, gb)
+    a, ga, sa = make_synthetic_stack(n_frames=2, shape=(80, 96), n_cells=2, seed=3)
+    b, gb, sb = make_synthetic_stack(n_frames=2, shape=(80, 96), n_cells=2, seed=3)
+    assert a.dtype == np.uint16 and a.shape == (2, 80, 96) and np.array_equal(a, b) and np.array_equal(ga, gb)
     assert sa["Cell"].any() and sa["Background"].any()
     assert not (sa["Cell"] & ~ga[0]).any() and not (sa["Background"] & ga[0]).any()
 
@@ -89,3 +89,9 @@ def test_object_stats_units():
     assert s["units"].startswith("px") and [o["area_px"] for o in s["objects"]] == [9, 6]
     s = object_stats(m, um_per_px=0.5, min_area_px=7)
     assert s["units"] == "um" and len(s["objects"]) == 1 and s["objects"][0]["area_um2"] == 9 * 0.25
+
+
+def test_synthetic_stack_too_small_raises():
+    from cell_segmenter.utils.synthetic_stack import make_synthetic_stack
+    with pytest.raises(ValueError):
+        make_synthetic_stack(n_frames=1, shape=(30, 30), n_cells=5, seed=1)
