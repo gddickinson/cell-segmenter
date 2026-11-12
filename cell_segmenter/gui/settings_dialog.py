@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any
 from ..utils.logger import setup_logger
+from ..config_io import render_config
 
 logger = setup_logger(__name__)
 
@@ -261,28 +262,9 @@ class SettingsDialog(QDialog):
             backup_path = config_path.with_suffix('.py.bak')
             config_path.rename(backup_path)
             
-            # Write new config
-            with open(config_path, 'w') as f:
-                f.write('"""Configuration settings for the cell segmentation application."""\n')
-                f.write('import os\n')
-                f.write('from pathlib import Path\n\n')
-                
-                # Project paths (preserve from original)
-                f.write('# Project paths\n')
-                f.write('PROJECT_ROOT = Path(__file__).parent\n')
-                f.write('DATA_DIR = PROJECT_ROOT / "data"\n')
-                f.write('MODELS_DIR = PROJECT_ROOT / "models"\n\n')
-                f.write('# Create directories if they don\'t exist\n')
-                f.write('os.makedirs(DATA_DIR, exist_ok=True)\n')
-                f.write('os.makedirs(MODELS_DIR, exist_ok=True)\n\n')
-                
-                # Write all settings
-                for key, value in settings.items():
-                    if isinstance(value, str):
-                        f.write(f'{key} = "{value}"\n')
-                    else:
-                        f.write(f'{key} = {value}\n')
-            
+            # Write new config: every existing setting, with the dialog's values applied
+            config_path.write_text(render_config(settings))
+
             logger.info("Settings saved successfully")
             QMessageBox.information(self, "Success", "Settings saved successfully")
             self.accept()
